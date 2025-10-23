@@ -12,7 +12,7 @@ from tensorboardX import SummaryWriter
 from jaxrl.agents import DDPGLearner, REDQLearner, SACLearner, DrQLearner
 from combrl.agents import CombrlExplorerLearner
 from jaxrl.datasets import ReplayBuffer
-from maxinforl import NstepReplayBuffer
+from maxinforl_jax.datasets import NstepReplayBuffer
 from combrl.utils.evaluation import evaluate
 from combrl.utils.multiple_reward_wrapper import RewardFunction
 from combrl.utils.rewards import PendulumKeepDown, MountainCarGoLeft, CheetahRunBackwards, HopperHopBackwards, \
@@ -359,7 +359,6 @@ def train(
             # HACK for MountainCar
             eval_env.unwrapped.min_position=-1.75
         if env_name=='Pendulum-v1':
-            # TODO: Multiple env init!
             env = PendulumInitWrapper(env, init_angle=np.pi, init_vel=0.0)
             eval_env = PendulumInitWrapper(eval_env, init_angle=np.pi, init_vel=0.0)
 
@@ -411,11 +410,6 @@ def train(
 
     eval_returns = []
     observation, _ = env.reset()
-    if False and isinstance(env.unwrapped, wrappers.DMCEnv):
-        # HACK
-        # TODO: Wrap around DMCEnv.step(...)
-        speed = env.unwrapped._env._physics.speed()
-        observation = np.concatenate((observation, np.array([speed]))).shape
 
     # Training Loop
     for i in tqdm.tqdm(range(1, max_steps + 1),
@@ -427,10 +421,6 @@ def train(
         else:
             action = agent.sample_actions(observation)
         next_observation, reward, terminate, truncate, info = env.step(action)
-        if False and isinstance(env.unwrapped, wrappers.DMCEnv):
-            # HACK: Wrap around DMCEnv.step(...)
-            speed = env.unwrapped._env._physics.speed()
-            observation = np.concatenate((observation, np.array([speed]))).shape
 
         if terminate:
             mask = 0.0
@@ -461,10 +451,6 @@ def train(
         if i >= training_start:
             for _ in range(updates_per_step):
                 batch = replay_buffer.sample(batch_size)
-                if False and isinstance(env.unwrapped, wrappers.DMCEnv):
-                    # HACK: Wrap around DMCEnv.step(...)
-                    speed = env.unwrapped._env._physics.speed()
-                    observation = np.concatenate((observation, np.array([speed]))).shape
                 update_info = agent.update(batch)
 
             if i % log_interval == 0:

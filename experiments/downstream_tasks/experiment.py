@@ -54,9 +54,6 @@ def experiment(
     print(f"Perturbation - Policy: {perturb_policy}, Model: {perturb_model}")
     print(f"Use Bronet: {use_bronet}, Pseudo CT: {pseudo_ct}")
 
-    # Your experiment implementation goes here
-
-
     # import jax
     # jax.config.update("jax_debug_nans", True)
     from combrl.utils.train_utils import train
@@ -75,17 +72,6 @@ def experiment(
         'use_bronet': use_bronet,
         'init_temperature': init_temperature,
     }
-    # if alg_name == 'drqv2' or alg_name == 'maxinfodrqv2':
-    #     del alg_kwargs['init_temperature'], alg_kwargs['temp_lr'], alg_kwargs['target_entropy']
-    #     # alg_kwargs['init_sig'] = 1.0
-    #     # alg_kwargs['final_sig'] = 0.1
-    #     if alg_name == 'drqv2':
-    #         alg_kwargs['init_sig'] = 1.0
-    #         alg_kwargs['final_sig'] = 0.1
-    #     else:
-    #         alg_kwargs['init_sig'] = sig
-    #         alg_kwargs['final_sig'] = sig
-    #     alg_kwargs['steps_to_final_sig'] = 500_000
 
     replay_buffer_size = min(replay_buffer_size, max_steps)
     if alg_name == 'combrl':

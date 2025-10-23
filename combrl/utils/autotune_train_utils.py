@@ -340,7 +340,6 @@ def train(
 
     eval_returns = []
     observation, _ = env.reset()
-    print("Beware, eval loop is HACKED to ignore instances where policy is reset")
     for i in tqdm.tqdm(range(1, max_steps + 1),
                        smoothing=0.1,
                        disable=not use_tqdm):
