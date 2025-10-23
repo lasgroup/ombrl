@@ -1,0 +1,2 @@
+from combrl.agents.maxinfombsac.maxinfombsac_learner import MaxInfoMBSacLearner
+from combrl.agents.combrl_explorer.combrl_explorer_learner import CombrlExplorerLearner
