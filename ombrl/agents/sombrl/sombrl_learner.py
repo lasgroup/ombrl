@@ -1,7 +1,7 @@
 """Implementations of algorithms for continuous control."""
 
 import functools
-from typing import Optional, Sequence, Tuple, Dict, List
+from typing import Optional, Sequence, Tuple, Dict, List, Callable
 
 import jax
 import jax.numpy as jnp
@@ -9,17 +9,60 @@ import numpy as np
 import optax
 import copy
 from jaxrl.agents.sac import temperature
-from combrl.agents.combrl_explorer.actor import update as update_actor
-from combrl.agents.combrl_explorer.critic import target_update
-from combrl.agents.combrl_explorer.critic import update as update_critic
-from combrl.agents.maxinfombsac.utils import PerturbationModule
+from ombrl.agents.sombrl.actor import update as update_actor
+from ombrl.agents.sombrl.critic import target_update
+from ombrl.agents.sombrl.critic import update as update_critic
 from jaxrl.agents.sac.temperature import update as update_temp
 
 from jaxrl.datasets import Batch
 from jaxrl.networks import critic_net, policies
 from jaxrl.networks.common import InfoDict, Model, PRNGKey
 from maxinforl_jax.models.ensemble_model import EnsembleState, DeterministicEnsemble, ProbabilisticEnsemble
-from combrl.utils.multiple_reward_wrapper import RewardFunction
+
+
+@jax.jit
+def jax_symexp(x):
+    return jnp.sign(x) * (jnp.exp(jnp.abs(x)) - 1.0)
+
+def predict_batch_from_batch(
+        reward_model: Callable,
+        batch: Batch,
+        action_repeat: float = 1.0,
+        use_symlog: bool = False,
+        predict_rewards: bool = False,
+        ) -> Batch:
+    """
+    Populate batch.rewards for a (possibly imagined) batch.
+
+    Behavior:
+      - If predict_rewards is True and next_observations has an extra dimension
+        (state_dim + 1), treat its last component as the predicted reward and
+        trim next_observations back to state_dim.
+      - Otherwise, compute rewards via `reward_model(observation, action, next_observation)`,
+        optionally undoing symlog on observations.
+    """
+    if predict_rewards:
+        next_obs = batch.next_observations
+        pred_rewards = next_obs[..., -1]
+        trimmed_next_obs = next_obs[..., :-1]
+        return batch._replace(next_observations=trimmed_next_obs,
+                              rewards=pred_rewards)
+
+    def per_sample(o, a, no):
+        if use_symlog:
+            o  = jax_symexp(o)
+            no = jax_symexp(no)
+        # Support both .predict(...) and direct call
+        if hasattr(reward_model, "predict"):
+            return reward_model.predict(o, a, no)
+        else:
+            return reward_model(o, a, no)
+
+    new_rewards = jax.vmap(per_sample, in_axes=(0, 0, 0))(
+        batch.observations, batch.actions, batch.next_observations
+    )
+    new_rewards = action_repeat * new_rewards
+    return batch._replace(rewards=new_rewards)
 
 
 def get_imagined_batch(
@@ -29,10 +72,8 @@ def get_imagined_batch(
         predict_rewards: bool,
         predict_diff: bool,
         sample_model: bool,
-        key: PRNGKey, # type: ignore
-        dt: float = None,
-        action_repeat: int = 1,
-):
+        key: PRNGKey,
+        ) -> Batch:
     input = jnp.concatenate([batch.observations, batch.actions], axis=-1)
     ens_mean, ens_std = ens(input=input, state=ens_state, denormalize_output=True)
     noise_key, key = jax.random.split(key, 2)
@@ -49,9 +90,6 @@ def get_imagined_batch(
     next_state = ens_mean + jax.random.normal(noise_key, shape=ens_std.shape) * ens_std
 
     if predict_diff:
-        if dt is not None:
-            # CT case: The ensemble predicts the derivative of the next_state
-            next_state = next_state * dt * action_repeat
         next_state = next_state + batch.observations
     imagined_batch = batch._replace(next_observations=next_state)
     return imagined_batch
@@ -64,8 +102,6 @@ def update_ensemble(batch: Batch,
                     ens_state: EnsembleState,
                     predict_rewards: bool,
                     predict_diff: bool,
-                    dt: float = None,
-                    action_repeat: int = 1,
                     ) -> Tuple[EnsembleState, InfoDict, Batch]:
     expl_rew, ens_state = ens.get_info_gain(input=jnp.concatenate([batch.observations, batch.actions], axis=-1),
                                             state=ens_state,
@@ -73,11 +109,8 @@ def update_ensemble(batch: Batch,
 
     if predict_diff:
         outputs = batch.next_observations - batch.observations
-        if dt is not None:
-            outputs = outputs / (dt * action_repeat)
     else:
         outputs = batch.next_observations
-    assert predict_rewards==False, "predict rewards should be False for COMBRL exps"
     if predict_rewards: 
         outputs = jnp.concatenate([outputs, batch.rewards.reshape(-1, 1)], axis=-1)
     new_ens_state, (loss, mse) = ens.update(
@@ -98,6 +131,13 @@ def update_ensemble(batch: Batch,
     return new_ens_state, ens_info, batch._replace(rewards=expl_rew)
 
 
+def update_policy_actions(imagined_batch: Batch, actor: Model, rng: PRNGKey) -> Tuple[PRNGKey, Batch]:
+    rng, actions = policies.sample_actions(rng, actor.apply_fn,
+                                       actor.params, imagined_batch.observations,
+                                       temperature = 1)
+    return rng, imagined_batch._replace(actions=actions)
+    
+
 @functools.partial(jax.jit,
                    static_argnames=('ens',
                                     'backup_entropy',
@@ -108,16 +148,21 @@ def update_ensemble(batch: Batch,
                                     'sample_model',
                                     'update_critic_with_real_data',
                                     'update_policy',
+                                    'reward_model',
+                                    'num_imagined_steps',
+                                    'use_symlog'
                                     ))
 def _update_jit(
-        rng: PRNGKey, actor: Model, critic: Model, target_critic: Model, temp: Model, # type: ignore
+        rng: PRNGKey, actor: Model, critic: Model, target_critic: Model, temp: Model,
         ens: DeterministicEnsemble, ens_state: EnsembleState,
         batch: Batch, discount: float, tau: float,
         target_entropy: float, backup_entropy: bool, update_target: bool,
         use_log_transform: bool, predict_rewards: bool, predict_diff: bool,
         sample_model: bool, update_critic_with_real_data: bool, update_policy: bool,
-        dt: float, action_repeat: int,
-) -> Tuple[PRNGKey, Model, Model, Model, Model, InfoDict]: # type: ignore
+        action_repeat: int, num_imagined_steps: int = 1, reward_model: Optional[Callable] = None,
+        use_symlog: bool = True,
+) -> Tuple[PRNGKey, Model, Model, Model, Model, InfoDict]:
+    # [x]: Keep update critic with real data?
     rng, key = jax.random.split(rng)
     if update_critic_with_real_data:
         new_critic, critic_info = update_critic(
@@ -134,21 +179,19 @@ def _update_jit(
         new_critic = critic
         critic_info = {}
 
-    rng, model_sample_key = jax.random.split(rng)
+    rng, model_sample_key, critic_key = jax.random.split(rng, 3)
     imagined_batch = get_imagined_batch(
-        batch=batch,
-        ens_state=ens_state,
-        ens=ens,
-        predict_diff=predict_diff,
-        predict_rewards=predict_rewards,
-        sample_model=sample_model,
-        key=model_sample_key,
-        dt=dt,
-        action_repeat=action_repeat,
-    )
-    rng, key = jax.random.split(rng)
+            batch=batch,
+            ens_state=ens_state,
+            ens=ens,
+            predict_diff=predict_diff,
+            predict_rewards=predict_rewards,
+            sample_model=sample_model,
+            key=model_sample_key,
+            )
+
     new_critic, imagined_critic_info = update_critic(
-        key=key,
+        key=critic_key,
         actor=actor,
         critic=new_critic,
         target_critic=target_critic,
@@ -157,13 +200,56 @@ def _update_jit(
         discount=discount,
         backup_entropy=backup_entropy,
     )
-
-    imagined_critic_info = {f'imagined_critic_{key}': val for key, val in imagined_critic_info.items()}
-
     if update_target:
         new_target_critic = target_update(new_critic, target_critic, tau)
     else:
         new_target_critic = target_critic
+
+    for _ in range(num_imagined_steps - 1):
+        # Re-sample actions using the current policy for the next imagined step, replace current state with the next imagined state
+        rng, model_sample_key, critic_key = jax.random.split(rng, 3)
+
+        imagined_batch = imagined_batch._replace(
+            observations=imagined_batch.next_observations)
+
+        rng, imagined_batch = update_policy_actions(imagined_batch, actor, rng)
+
+        imagined_batch = get_imagined_batch(
+            batch=imagined_batch,
+            ens_state=ens_state,
+            ens=ens,
+            predict_diff=predict_diff,
+            predict_rewards=predict_rewards,
+            sample_model=sample_model,
+            key=model_sample_key,
+            )
+        
+        if reward_model is not None:
+            imagined_batch = predict_batch_from_batch(reward_model, imagined_batch, action_repeat, use_symlog, predict_rewards)
+        else:
+            expl_rew, _ = ens.get_info_gain(input=jnp.concatenate(
+                                            [imagined_batch.observations, imagined_batch.actions], axis=-1),
+                                            state=ens_state,
+                                            update_normalizer=False)
+            imagined_batch = imagined_batch._replace(rewards=expl_rew)
+
+        new_critic, imagined_critic_info = update_critic(
+            key=critic_key,
+            actor=actor,
+            critic=new_critic,
+            target_critic=target_critic,
+            temp=temp,
+            batch=imagined_batch,
+            discount=discount,
+            backup_entropy=backup_entropy,
+        )
+
+        if update_target:
+            new_target_critic = target_update(new_critic, target_critic, tau)
+        else:
+            new_target_critic = target_critic
+
+    imagined_critic_info = {f'imagined_critic_{key}': val for key, val in imagined_critic_info.items()}
 
     if update_policy:
         rng, key = jax.random.split(rng)
@@ -182,13 +268,36 @@ def _update_jit(
     }
 
 
-class CombrlExplorerLearner(object):
+class SombrlExplorerLearner(object):
+    """Initializes the SombrlExplorerLearner.
+        
+    Has different exploration methods:
+            - Mean (greedy) exploration if:
+                - int_rew_weight_start = int_rew_weight_end = -1
+                - int_rew_weight_decrease_steps = -1
+                - sample_model = False
+                - explore_until = 0
+            - PETS-like exploration if:
+                - int_rew_weight_start = int_rew_weight_end = -1
+                - int_rew_weight_decrease_steps = -1
+                - sample_model = True
+                - explore_until = 0
+            - OMBRL exploration if:
+                - int_rew_weight_start >= 0
+                - int_rew_weight_start >= int_rew_weight_end >= 0
+                - int_rew_weight_decrease_steps >= 0
+                - explore_until > 0
+            - Unsupervised exploration if:
+                - int_rew_weight_start = int_rew_weight_end = -1
+                - int_rew_weight_decrease_steps = -1
+                - explore_until > 0
+    """
 
     def __init__(self,
                  seed: int,
                  observations: jnp.ndarray,
                  actions: jnp.ndarray,
-                 reward_list: List[RewardFunction],
+                 reward_model: Optional[Callable] = None,
                  actor_lr: float = 3e-4,
                  critic_lr: float = 3e-4,
                  temp_lr: float = 3e-4,
@@ -199,6 +308,7 @@ class CombrlExplorerLearner(object):
                  num_heads: int = 5,
                  predict_reward: bool = False,
                  predict_diff: bool = True,
+                 use_symlog: bool = True,
                  use_log_transform: bool = False,
                  learn_std: bool = False,
                  discount: float = 0.99,
@@ -218,17 +328,14 @@ class CombrlExplorerLearner(object):
                  use_bronet: bool = False,
                  reset_period: Optional[int] = None,
                  reset_models: bool = False,
-                 perturb_rate: float = 0.2,
-                 perturb_policy: bool = True,
-                 perturb_model: bool = True,
                  explore_until: int = 1_000_000,
-                 pseudo_ct: bool = False,
-                 dt: float = None,
                  action_repeat: int = None,
-                int_rew_weight_start: float = -1.0,
-                int_rew_weight_end: float = 0.0,
-                int_rew_weight_decrease_steps: int = -1,
+                 int_rew_weight_start: float = -1.0,
+                 int_rew_weight_end: float = 0.0,
+                 int_rew_weight_decrease_steps: int = -1,
+                 num_imagined_steps: int = 1,
                  ):
+
         self.predict_diff = predict_diff
         self.predict_reward = predict_reward
         self.expl_agent_update_period = expl_agent_update_period
@@ -237,7 +344,6 @@ class CombrlExplorerLearner(object):
         self.num_heads = num_heads
         self.sample_model = sample_model
         self.critic_real_data_update_period = critic_real_data_update_period
-        self.perturb_rate = perturb_rate
         if policy_update_period:
             self.policy_update_period = policy_update_period
         else:
@@ -262,10 +368,6 @@ class CombrlExplorerLearner(object):
             self.reset_period = reset_period
 
         self._reset_models = reset_models
-
-        num_rewards = len(reward_list)
-        self.reward_list = reward_list
-
 
         actor_optimizer = optax.adam(learning_rate=actor_lr)
         critic_optimizer = optax.adam(learning_rate=critic_lr)
@@ -301,32 +403,22 @@ class CombrlExplorerLearner(object):
         # Key splitting
         rng = jax.random.PRNGKey(seed)
         rng, actor_keys, critic_keys, temp_keys = jax.random.split(rng, 4)
-        actor_keys = jax.random.split(actor_keys, num_rewards+1)
-        critic_keys = jax.random.split(critic_keys, num_rewards+1)
-        temp_keys = jax.random.split(temp_keys, num_rewards+1)
+        actor_keys = jax.random.split(actor_keys, 2)
+        critic_keys = jax.random.split(critic_keys, 2)
+        temp_keys = jax.random.split(temp_keys, 2)
 
-        self.agents: List[Dict[str, RewardFunction | Model]] = []
-        for i, reward_function in enumerate(reward_list):
-            actor = Model.create(actor_def,
-                                inputs=[actor_keys[i], observations],
+        actor = Model.create(actor_def,
+                                inputs=[actor_keys[0], observations],
                                 tx=actor_optimizer)
-            critic = Model.create(critic_def,
-                                inputs=[critic_keys[i], observations, actions],
+        critic = Model.create(critic_def,
+                                inputs=[critic_keys[0], observations, actions],
                                 tx=critic_optimizer)
-            target_critic = Model.create(critic_def, 
-                                         inputs=[critic_keys[i], observations, actions])
-            
-            temp = Model.create(temperature.Temperature(init_temperature),
-                                inputs=[temp_keys[i]],
-                                tx=temp_optimizer)
-            self.agents.append({
-                'reward_fn': reward_function,
-                'actor': actor,
-                'critic': critic,
-                'target_critic': target_critic,
-                'temp': temp,
-            })
-        
+        target_critic = Model.create(critic_def,
+                                        inputs=[critic_keys[0], observations, actions])
+        temp = Model.create(temperature.Temperature(init_temperature),
+                            inputs=[temp_keys[0]],
+                            tx=temp_optimizer)
+
         expl_actor = Model.create(actor_def,
                                   inputs=[actor_keys[-1], observations],
                                   tx=actor_optimizer)
@@ -361,20 +453,10 @@ class CombrlExplorerLearner(object):
 
         ens_state = ensemble.init(key=model_key, input=jnp.concatenate([observations, actions], axis=-1))
 
-        self.perturb_module = PerturbationModule(
-            actor_init_fn=actor_def.init,
-            critic_init_fn=critic_def.init,
-            model_init_fn=ensemble.init,
-            actor_init_opt_state=copy.deepcopy(actor.opt_state),
-            critic_init_opt_state=copy.deepcopy(critic.opt_state),
-            perturb_rate=perturb_rate,
-            perturbation_freq=self.reset_period,
-            perturb_policy=perturb_policy,
-            perturb_model=perturb_model,
-        )
-
-        self.use_log_transform = use_log_transform
-
+        self.actor = actor
+        self.critic = critic
+        self.target_critic = target_critic
+        self.temp = temp
         self.expl_actor = expl_actor
         self.expl_critic = expl_critic
         self.expl_target_critic = expl_target_critic
@@ -388,13 +470,7 @@ class CombrlExplorerLearner(object):
         self.ens_state = ens_state
 
         self.step = 1
-        if dt is not None:
-            assert pseudo_ct == True, f"continuous-time must be enabled for given dt, got: {pseudo_ct}"
-            assert predict_diff == True, \
-            f"predict_diff should be True in the pseudo-ct case, got: {predict_diff} for dt={dt}"
-        else:
-            assert pseudo_ct == False, f"continuous-time must be disabled for given dt, got: {pseudo_ct}"
-        self.dt = dt
+
         self.action_repeat = action_repeat
 
         if int_rew_weight_decrease_steps >= 0:
@@ -409,25 +485,28 @@ class CombrlExplorerLearner(object):
                 value=int_rew_weight_start
             )
 
+        self.reward_model = reward_model
+        self.use_symlog = use_symlog
+        self.num_imagined_steps = num_imagined_steps
+
 
     def sample_actions(self,
                        observations: np.ndarray,
                        temperature: float = 1.0,
                        reward_index: int = 0) -> np.ndarray:
-        agent = self.agents[reward_index]
         if temperature == 0:
-            rng, actions = policies.sample_actions(self.rng, agent['actor'].apply_fn,
-                                                agent['actor'].params, observations,
-                                                temperature)
+            rng, actions = policies.sample_actions(self.rng, self.actor.apply_fn,
+                                                   self.actor.params, observations,
+                                                   temperature)
         else:
             if self.step <= self.explore_until:
                 rng, actions = policies.sample_actions(self.rng, self.expl_actor.apply_fn,
-                                                    self.expl_actor.params, observations,
-                                                    temperature)
+                                                       self.expl_actor.params, observations,
+                                                       temperature)
             else:
-                rng, actions = policies.sample_actions(self.rng, agent['actor'].apply_fn,
-                                                    agent['actor'].params, observations,
-                                                    temperature)
+                rng, actions = policies.sample_actions(self.rng, self.actor.apply_fn,
+                                                       self.actor.params, observations,
+                                                       temperature)
         self.rng = rng
         actions = np.asarray(actions)
         return np.clip(actions, -1, 1)
@@ -435,22 +514,12 @@ class CombrlExplorerLearner(object):
     def update(self, batch: Batch) -> InfoDict:
         if self._reset_models:
             rng, self.rng = jax.random.split(self.rng)
-            for agent in self.agents:
-                rng, agent_rng = jax.random.split(rng)
-                new_actor, new_critic, new_target_critic, new_ens_state = self.perturb_module.perturb(
-                    actor=agent['actor'],
-                    critic=agent['critic'],
-                    target_critic=agent['target_critic'],
-                    ens_state=self.ens_state,
-                    observation=batch.observations,
-                    action=batch.actions,
-                    rng=agent_rng,
-                    step=self.step
-                )
-                agent['actor'] = new_actor
-                agent['critic'] = new_critic
-                agent['target_critic'] = new_target_critic
-                self.ens_state = new_ens_state
+            rng, agent_rng = jax.random.split(rng)
+            raise NotImplementedError("Pertubation model not implemented")
+            self.actor = new_actor
+            self.critic = new_critic
+            self.target_critic = new_target_critic
+            self.ens_state = new_ens_state
         
         self.step += 1
         new_ens_state, ens_info, expl_batch = update_ensemble(batch=batch,
@@ -458,49 +527,40 @@ class CombrlExplorerLearner(object):
                                                               ens_state=self.ens_state,
                                                               predict_diff=self.predict_diff,
                                                               predict_rewards=self.predict_reward,
-                                                              dt=self.dt,
-                                                              action_repeat=self.action_repeat,
                                                               )
         
         int_rew_weight = self.int_rew_weight_schedule(self.step)
 
         if int_rew_weight >= 0:
-            # COMBRL
+            # OMBRL
             external_reward = batch.rewards
             internal_rewards = expl_batch.rewards
-            expl_batch = expl_batch._replace(rewards=external_reward + int_rew_weight * internal_rewards)
+            expl_batch = expl_batch._replace(
+                rewards=(external_reward + int_rew_weight * internal_rewards) / (1+int_rew_weight))
         else:
-            # Unsupervised COMBRL or greedy
+            # OPAX or greedy
             pass
 
         self.ens_state = new_ens_state
-
         info = ens_info
 
         if self.step % self.agent_update_period == 0:
-            for idx, agent in enumerate(self.agents):
-                new_rewards = self.action_repeat * agent['reward_fn'](
-                    batch.observations, batch.actions, batch.next_observations, batch.rewards
-                )
-                # Create a new batch with the updated rewards.
-                new_batch = batch._replace(rewards=new_rewards)
-                
-                new_rng, new_actor, new_critic, new_target_critic, new_temp, agent_info = _update_jit(
-                    self.rng, agent['actor'], agent['critic'], agent['target_critic'], agent['temp'],
-                    self.ens, self.ens_state, new_batch, self.discount, self.tau, self.target_entropy,
-                    self.backup_entropy, self.step % self.target_update_period == 0, 
-                    self.use_log_transform, self.predict_reward, self.predict_diff, 
-                    self.sample_model, self.step % self.critic_real_data_update_period == 0,
-                    self.step % self.policy_update_period == 0, self.dt, self.action_repeat)
+            new_rng, new_actor, new_critic, new_target_critic, new_temp, agent_info = _update_jit(
+                self.rng, self.actor, self.critic, self.target_critic, self.temp,
+                self.ens, self.ens_state, batch, self.discount, self.tau, self.target_entropy,
+                self.backup_entropy, self.step % self.target_update_period == 0,
+                self.use_log_transform, self.predict_reward, self.predict_diff,
+                self.sample_model, self.step % self.critic_real_data_update_period == 0,
+                self.step % self.policy_update_period == 0, self.action_repeat,
+                self.num_imagined_steps, self.reward_model, self.use_symlog)
 
-                self.rng = new_rng
-                agent['actor'] = new_actor
-                agent['critic'] = new_critic
-                agent['target_critic'] = new_target_critic
-                agent['temp'] = new_temp
+            self.rng = new_rng
+            self.actor = new_actor
+            self.critic = new_critic
+            self.target_critic = new_target_critic
+            self.temp = new_temp
 
-                # info = info | agent_info
-                info = info | {f'agent_{idx}_{k}': v for k, v in agent_info.items()}
+            info = info | {f'agent_{k}': v for k, v in agent_info.items()}
 
         if self.step % self.expl_agent_update_period == 0:
             new_rng, new_actor, new_critic, new_target_critic, new_temp, agent_info = _update_jit(
@@ -509,7 +569,8 @@ class CombrlExplorerLearner(object):
                 self.backup_entropy, self.step % self.target_update_period == 0, 
                 self.use_log_transform, self.predict_reward, self.predict_diff, 
                 self.sample_model, self.step % self.critic_real_data_update_period == 0,
-                self.step % self.policy_update_period == 0, self.dt, self.action_repeat)
+                self.step % self.policy_update_period == 0, self.action_repeat,
+                self.num_imagined_steps, None, self.use_symlog)
 
             self.rng = new_rng
             self.expl_actor = new_actor

@@ -1,0 +1,3 @@
+from ombrl.agents.sombrl.sombrl_learner import SombrlExplorerLearner
+from ombrl.agents.combrl.combrl_learner import CombrlExplorerLearner
+from ombrl.agents.ombrl_maxinfo.ombrl_maxinfo_learner import MaxInfoOmbrlLearner

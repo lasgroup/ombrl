@@ -7,14 +7,6 @@ from jaxrl.networks.common import Model
 from maxinforl_jax.models import EnsembleState
 
 
-def symlog(x: chex.Array):
-    return jnp.sign(x) * jnp.log1p(jnp.abs(x))
-
-
-def symexp(x: chex.Array):
-    return jnp.sign(x) * jnp.expm1(jnp.abs(x))
-
-
 @jax.jit
 def perturb_params(init_params: PyTree,
                    trained_params: PyTree,

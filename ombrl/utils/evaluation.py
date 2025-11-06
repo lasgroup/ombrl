@@ -4,9 +4,9 @@ import gymnasium as gym
 import numpy as np
 import copy
 
-from combrl.agents import CombrlExplorerLearner
-from combrl.utils.multiple_reward_wrapper import RewardFunction
-from combrl.utils.rewards import MountainCarGoLeft
+from ombrl.agents import CombrlExplorerLearner
+from ombrl.utils.multiple_reward_wrapper import RewardFunction
+from ombrl.utils.rewards import MountainCarGoLeft
 from jaxrl.wrappers import dmc_env
 """
 Adapted from: https://github.com/ikostrikov/jaxrl/blob/main/jaxrl/evaluation.py

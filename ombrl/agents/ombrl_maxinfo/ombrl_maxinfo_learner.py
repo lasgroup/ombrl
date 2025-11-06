@@ -10,7 +10,7 @@ from jaxrl.agents.sac import temperature
 from maxinforl_jax.agents.maxinfosac.actor import update as update_actor
 from maxinforl_jax.agents.maxinfosac.critic import target_update
 from maxinforl_jax.agents.maxinfosac.critic import update as update_critic
-from combrl.agents.maxinfombsac.utils import PerturbationModule
+from ombrl.utils.pertubation import PerturbationModule
 from jaxrl.agents.sac.temperature import update as update_temp
 
 from jaxrl.datasets import Batch
@@ -198,7 +198,7 @@ def _update_jit(
     }
 
 
-class MaxInfoMBSacLearner(object):
+class MaxInfoOmbrlLearner(object):
     def __init__(self,
                  seed: int,
                  observations: jnp.ndarray,

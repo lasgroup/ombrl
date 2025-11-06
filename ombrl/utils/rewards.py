@@ -3,7 +3,7 @@ import jax.numpy as jnp
 
 from typing import List, Callable
 from dm_control.utils import rewards
-from combrl.utils.multiple_reward_wrapper import RewardFunction, DmRewardFunction
+from ombrl.utils.multiple_reward_wrapper import RewardFunction, DmRewardFunction
 from jaxrl.wrappers import DMCEnv
 
 

@@ -6,23 +6,21 @@ import gymnasium.wrappers
 import numpy as np
 import tqdm
 import jax.numpy as jnp
-from typing import Optional, Dict, Callable, Tuple, List
+from typing import Optional, Dict, Callable
 from tensorboardX import SummaryWriter
 
-from jaxrl.agents import DDPGLearner, REDQLearner, SACLearner, DrQLearner
-from combrl.agents import CombrlExplorerLearner
+# from jaxrl.agents import DDPGLearner, REDQLearner, SACLearner, DrQLearner
+from maxinforl_jax.agents import MaxInfoSacLearner
+from ombrl.agents import MaxInfoOmbrlLearner
 from jaxrl.datasets import ReplayBuffer
 from maxinforl_jax.datasets import NstepReplayBuffer
-from combrl.utils.evaluation import evaluate
-from combrl.utils.multiple_reward_wrapper import RewardFunction
-from combrl.utils.rewards import PendulumKeepDown, MountainCarGoLeft, CheetahRunBackwards, HopperHopBackwards, \
-    WalkerWalkBackwards, ReacherKeepAway, PusherPushAway, PusherKeepAway, PusherGoAway # , DmCheetahRunBackwards
-from combrl.utils.wrappers import PendulumInitWrapper
-from jaxrl.utils import make_env as jaxrl_make_env
+from ombrl.utils.wrappers import PendulumInitWrapper
+from jaxrl.evaluation import evaluate
+from jaxrl.utils import make_env
 import wandb
 import gymnasium as gym
 from gymnasium.wrappers import RescaleAction
-from gymnasium.wrappers.pixel_observation import PixelObservationWrapper # DEPRECATED
+from gymnasium.wrappers.pixel_observation import PixelObservationWrapper
 
 from jaxrl import wrappers
 
@@ -75,66 +73,6 @@ def get_dt(
         domain_name, task_name = env_name.split('-')
         if domain_name in env_timesteps.keys():
             return env_timesteps.get(domain_name)
-        else:
-            raise ValueError(f"Invalid environment: {domain_name}")
-
-
-def get_rewards(
-        env_name: str,
-) -> List[RewardFunction]:
-    env_rewards = {
-        "MountainCarContinuous": [
-            RewardFunction(0), 
-            MountainCarGoLeft(1)
-        ],
-        "Pendulum": [
-            PendulumKeepDown(-1), 
-            RewardFunction(1, lambda obs, act, next_obs, r: -r),
-            RewardFunction(2, lambda obs, act, next_obs, r: r)
-        ],
-        "HalfCheetah": [
-            RewardFunction(0), 
-            RewardFunction(1, lambda obs, act, next_obs, r: -r),
-            CheetahRunBackwards(2)
-        ],
-        "Hopper": [
-            RewardFunction(0), 
-            RewardFunction(1, lambda obs, act, next_obs, r: -r),
-            HopperHopBackwards(2)
-        ],
-        "Walker2d": [
-            RewardFunction(0), 
-            RewardFunction(1, lambda obs, act, next_obs, r: -r),
-            WalkerWalkBackwards(2)
-        ],
-        "Pusher": [
-            RewardFunction(0), 
-            PusherPushAway(1),
-            PusherKeepAway(2),
-            PusherGoAway(3)
-        ],
-        "Reacher": [
-            RewardFunction(0), 
-            RewardFunction(1, lambda obs, act, next_obs, r: -r),
-            ReacherKeepAway(2)
-        ],
-        "cartpole": [
-            RewardFunction(0), 
-            RewardFunction(1, lambda obs, act, next_obs, r: np.ones_like(r)),
-            RewardFunction(1, lambda obs, act, next_obs, r: -r)
-        ],
-        # "cheetah": [
-        #     RewardFunction(0), 
-        #     RewardFunction(1, lambda obs, act, next_obs, r: -r),
-        #     DmCheetahRunBackwards(2)
-        # ],
-    }
-    if env_name in env_rewards.keys():
-        return env_rewards.get(env_name)
-    else:
-        domain_name, task_name = env_name.split('-')
-        if domain_name in env_rewards.keys():
-            return env_rewards.get(domain_name)
         else:
             raise ValueError(f"Invalid environment: {domain_name}")
 
@@ -198,8 +136,8 @@ def make_humanoid_bench_env(
         env = gymnasium.wrappers.RecordVideo(env, save_folder, episode_trigger=episode_trigger)
 
     if from_pixels:
-        raise NotImplementedError("Pixel observation wrapper is deprecated") # env = PixelObservationWrapper(env,
-        # pixels_only=pixels_only)
+        env = PixelObservationWrapper(env,
+                                      pixels_only=pixels_only)
         env = wrappers.TakeKey(env, take_key='pixels')
         if downscale_image:
             env = gymnasium.wrappers.ResizeObservation(env, shape=image_size)
@@ -261,8 +199,8 @@ def make_metaworld_env(
         env = gym.wrappers.RecordVideo(env, save_folder)
 
     if from_pixels:
-        raise NotImplementedError("Pixel observation wrapper is deprecated") # env = PixelObservationWrapper(env,
-        #                               pixels_only=pixels_only)
+        env = PixelObservationWrapper(env,
+                                      pixels_only=pixels_only)
         env = wrappers.TakeKey(env, take_key='pixels')
         if gray_scale:
             env = wrappers.RGB2Gray(env)
@@ -280,18 +218,6 @@ def make_metaworld_env(
     env.observation_space.seed(seed)
 
     return env
-
-
-def make_env(*args, **kwargs
-             ) -> Tuple[gym.Env, List[RewardFunction]]:
-    env_name = kwargs.get('env_name', None)
-    
-    reward_list = get_rewards(env_name)
-    env = jaxrl_make_env(*args, **kwargs)
-    if env_name=='MountainCarContinuous-v0':
-        # HACK for MountainCar
-        env.unwrapped.min_position=-1.75
-    return env, reward_list
 
 
 def train(
@@ -346,28 +272,29 @@ def train(
         eval_env = make_metaworld_env(env_name=task_name, seed=seed + 42,
                                       save_folder=video_eval_folder, **env_kwargs)
     else:
-        env, reward_list = make_env(env_name=env_name, seed=seed,
+        env = make_env(env_name=env_name, seed=seed,
                        save_folder=video_train_folder,
                        recording_image_size=recording_image_size,
                        **env_kwargs)
-        eval_env = jaxrl_make_env(env_name=env_name, seed=seed + 42,
+        eval_env = make_env(env_name=env_name, seed=seed + 42,
                             save_folder=video_eval_folder,
                             episode_trigger=eval_episode_trigger,
                             recording_image_size=recording_image_size,
                             **env_kwargs)
-        if env_name=='MountainCarContinuous-v0':
-            # HACK for MountainCar
-            eval_env.unwrapped.min_position=-1.75
-        if env_name=='Pendulum-v1':
+        if 'Pendulum' in env_name and exp_hash=='SwingUp':
+            # HACK for Pendulum
             env = PendulumInitWrapper(env, init_angle=np.pi, init_vel=0.0)
-            eval_env = PendulumInitWrapper(eval_env, init_angle=np.pi, init_vel=0.0)
+            eval_env = PendulumInitWrapper(env, init_angle=np.pi, init_vel=0.0)
+        elif 'Pendulum' in env_name and exp_hash=='KeepUp':
+            # HACK for Pendulum
+            env = PendulumInitWrapper(env, init_angle=0.0, init_vel=0.0)
+            eval_env = PendulumInitWrapper(env, init_angle=0.0, init_vel=0.0)
 
     np.random.seed(seed)
     random.seed(seed)
 
     if alg_kwargs.get('pseudo_ct', False):
         alg_kwargs['dt'] = get_dt(env_name)
-        log_config.update({'dt': alg_kwargs['dt']})
         alg_kwargs['action_repeat'] = env_kwargs.get('action_repeat', 1)
 
     if wandb_log:
@@ -387,11 +314,14 @@ def train(
     summary_writer = SummaryWriter(
         os.path.join(logs_dir, run_name))
 
-    if alg_name == 'combrl':
-        agent = CombrlExplorerLearner(seed,
-                           env.observation_space.sample(),
-                           env.action_space.sample(),
-                           reward_list, **alg_kwargs)
+    if alg_name == 'maxinfosac':
+        agent = MaxInfoSacLearner(seed,
+                                  env.observation_space.sample(),
+                                  env.action_space.sample(), **alg_kwargs)
+    elif alg_name == 'maxinfombsac':
+        agent = MaxInfoOmbrlLearner(seed,
+                                    env.observation_space.sample(),
+                                    env.action_space.sample(), **alg_kwargs)
     else:
         raise NotImplementedError()
     if n_steps_returns < 0:
@@ -410,8 +340,6 @@ def train(
 
     eval_returns = []
     observation, _ = env.reset()
-
-    # Training Loop
     for i in tqdm.tqdm(range(1, max_steps + 1),
                        smoothing=0.1,
                        disable=not use_tqdm):
@@ -459,16 +387,15 @@ def train(
                 summary_writer.flush()
 
         if i % eval_interval == 0:
-            eval_info = evaluate(agent, eval_env, eval_episodes, reward_list)
+            eval_stats = evaluate(agent, eval_env, eval_episodes)
 
-            for reward_index, eval_stats in eval_info.items():
-                for k, v in eval_stats.items():
-                    summary_writer.add_scalar(f'evaluation/task_{reward_index}_average_{k}s', v,
-                                            info['total']['timesteps'])
-                summary_writer.flush()
+            for k, v in eval_stats.items():
+                summary_writer.add_scalar(f'evaluation/average_{k}s', v,
+                                          info['total']['timesteps'])
+            summary_writer.flush()
 
-                eval_returns.append(
-                    (info['total']['timesteps'], eval_stats['eval_return']))
-                np.savetxt(os.path.join(logs_dir, f'{seed}.txt'),
-                        eval_returns,
-                        fmt=['%d', '%.1f'])
+            eval_returns.append(
+                (info['total']['timesteps'], eval_stats['return']))
+            np.savetxt(os.path.join(logs_dir, f'{seed}.txt'),
+                       eval_returns,
+                       fmt=['%d', '%.1f'])
