@@ -15,7 +15,7 @@ required = [
 
 extras = {}
 setup(
-    name='combrl',
+    name='ombrl',
     version='0.0.1',
     license="MIT",
     packages=find_packages(),
