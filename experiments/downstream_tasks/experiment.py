@@ -56,7 +56,13 @@ def experiment(
 
     # import jax
     # jax.config.update("jax_debug_nans", True)
-    from combrl.utils.train_utils import train
+    from ombrl.utils.train_utils import train
+    from ..reward_utils import get_dt, get_rewards
+
+    env_kwargs = {'action_cost': action_cost,
+                  'action_repeat': action_repeat,
+                  }
+
     if alg_name in ['maxentdrq', 'drq']:
         n_steps_returns = -1
     alg_kwargs = {
@@ -87,12 +93,9 @@ def experiment(
         alg_kwargs['int_rew_weight_start'] = int_rew_weight_start
         alg_kwargs['int_rew_weight_end'] = int_rew_weight_end
         alg_kwargs['int_rew_weight_decrease_steps'] = int_rew_weight_decrease_steps
+        alg_kwargs['dt'] = get_dt(env_name)
+        alg_kwargs['action_repeat'] = env_kwargs.get('action_repeat', 1)
 
-
-    env_kwargs = {'action_cost': action_cost,
-                  'action_repeat': action_repeat,
-                  }
-    
     if int_rew_weight_start >= 0.:
         exp_name = exp_hash + '__' + str(int_rew_weight_start)
     else:
@@ -120,6 +123,7 @@ def experiment(
         'perturb_model': perturb_model,
         'explore_until': explore_until,
         'pseudo_ct': pseudo_ct,
+        'dt': alg_kwargs['dt'],
         'int_rew_weight_start': int_rew_weight_start,
         'int_rew_weight_end': int_rew_weight_end,
         'int_rew_weight_decrease_steps': int_rew_weight_decrease_steps,
@@ -130,6 +134,7 @@ def experiment(
         entity_name=entity_name,
         alg_name=alg_name,
         env_name=env_name,
+        reward_list = get_rewards(env_name),
         alg_kwargs=alg_kwargs,
         env_kwargs=env_kwargs,
         seed=seed,

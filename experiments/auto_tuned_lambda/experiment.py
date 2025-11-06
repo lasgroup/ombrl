@@ -38,7 +38,12 @@ def experiment(
         perturb_model: bool = True,
         pseudo_ct: bool = True,
 ):
-    from combrl.utils.autotune_train_utils import train
+    from ombrl.utils.autotune_train_utils import train
+    from ..reward_utils import get_dt, get_rewards    
+    
+    env_kwargs = {'action_cost': action_cost,
+                  'action_repeat': action_repeat,
+                  }
 
     alg_kwargs = {
         'actor_lr': lr,
@@ -74,14 +79,14 @@ def experiment(
             alg_kwargs['perturb_policy'] = perturb_policy
             alg_kwargs['perturb_model'] = perturb_model
             alg_kwargs['pseudo_ct'] = pseudo_ct
+            alg_kwargs['dt'] = get_dt(env_name)
+            alg_kwargs['action_repeat'] = env_kwargs.get('action_repeat', 1)
+
             # set update per step such that critic is updated at least once using real data.
             updates_per_step = critic_real_data_update_period * updates_per_step
 
     model_update_delay = 1
 
-    env_kwargs = {'action_cost': action_cost,
-                  'action_repeat': action_repeat,
-                  }
 
     log_config = {
         'alg_name': alg_name,
@@ -106,6 +111,7 @@ def experiment(
         'perturb_policy': perturb_policy,
         'perturb_model': perturb_model,
         'pseudo_ct': pseudo_ct,
+        'dt': alg_kwargs['dt'],
     }
 
     train(
@@ -113,6 +119,7 @@ def experiment(
         entity_name=entity_name,
         alg_name=alg_name,
         env_name=env_name,
+        reward_list = get_rewards(env_name),
         alg_kwargs=alg_kwargs,
         env_kwargs=env_kwargs,
         seed=seed,
