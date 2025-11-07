@@ -1,8 +1,8 @@
 from experiments.utils import generate_run_commands, generate_base_command, dict_permutations
-from experiments.auto_tuned_lambda import experiment as exp
+from experiments.combrl.auto_tuned_lambda import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MaxInfoMBSAC'
+PROJECT_NAME = 'MaxInfoMBSAC_Nov_07_13_30_Test_1_Combrl'
 
 """
 Pendulum-v1
@@ -16,7 +16,7 @@ Quadruped run
 entity = 'kiten'
 _applicable_configs = {
     'batch_size': [256],
-    'seed': list(range(5)),
+    'seed': list(range(3)),
     'wandb_log': [1],
     'project_name': [PROJECT_NAME],
     'entity_name': [entity],
@@ -125,7 +125,7 @@ configs_gym = {
     'env_name': ['HalfCheetah-v4',
                  'Hopper-v4'],
     'max_steps': [2_000_000],
-    'eval_interval': [10_000],
+    'eval_interval': [20_000],
     'action_repeat': [2],
     'num_neurons': [256],
     'num_hidden_layers': [2],
@@ -160,6 +160,7 @@ configs_pusher = {
     'num_hidden_layers': [2],
 }
 
+"""
 all_flags_combinations = dict_permutations(configs_others | _applicable_configs_mbsac) \
                          + dict_permutations(configs_cartpole | _applicable_configs_mbsac) \
                          + dict_permutations(configs_mountaincar | _applicable_configs_mbsac)\
@@ -168,6 +169,11 @@ all_flags_combinations = dict_permutations(configs_others | _applicable_configs_
                          + dict_permutations(configs_cartpole | _applicable_configs_mbmean) \
                          + dict_permutations(configs_mountaincar | _applicable_configs_mbmean)\
                          + dict_permutations(configs_humanoid | _applicable_configs_mbmean)
+"""
+all_flags_combinations = dict_permutations(configs_gym | _applicable_configs_mbsac) \
+                         + dict_permutations(configs_mountaincar | _applicable_configs_mbsac)\
+                         + dict_permutations(configs_gym | _applicable_configs_mbmean) \
+                         + dict_permutations(configs_mountaincar | _applicable_configs_mbmean)
 
 def main(args):
     command_list = []

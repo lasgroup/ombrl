@@ -1,8 +1,8 @@
 from experiments.utils import generate_run_commands, generate_base_command, dict_permutations
-from experiments.downstream_tasks import experiment as exp
+from experiments.combrl.downstream_tasks import experiment as exp
 import argparse
 
-PROJECT_NAME = 'COMBRL'
+PROJECT_NAME = 'COMBRL_Nov_07_13_30_Test_1_Combrl'
 
 """
 Pendulum-v1
@@ -14,7 +14,7 @@ Cheetah run
 entity = 'kiten'
 _applicable_configs = {
     'batch_size': [256],
-    'seed': list(range(5)),
+    'seed': list(range(3)),
     'wandb_log': [1],
     'project_name': [PROJECT_NAME],
     'entity_name': [entity],
@@ -39,7 +39,7 @@ _applicable_configs_combrl = {'alg_name': ['combrl'],
                              'perturb_policy': [0],
                              'use_bronet': [1],
                              'explore_until': [2_500_000],
-                             'int_rew_weight_start': [0, 1.0, 2.0, 10., 50.],
+                             'int_rew_weight_start': [2],
                              'int_rew_weight_end': [0],
                              'int_rew_weight_decrease_steps': [50_000, 70_000, 100_000],
                              } | _applicable_configs
@@ -159,9 +159,8 @@ configs_gym = {
     # 'num_hidden_layers': [2],
 }
 
-all_flags_combinations = dict_permutations(configs_mountaincar | _applicable_configs_copax) \
-                         + dict_permutations(configs_mountaincar | _applicable_configs_mean) \
-                        + dict_permutations(configs_gym | _applicable_configs_copax) \
+all_flags_combinations = dict_permutations(configs_gym | _applicable_configs_combrl) \
+                         + dict_permutations(configs_gym | _applicable_configs_copax) \
                          + dict_permutations(configs_gym | _applicable_configs_mean)
 
 def main(args):

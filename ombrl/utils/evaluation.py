@@ -4,7 +4,6 @@ import gymnasium as gym
 import numpy as np
 import copy
 
-from ombrl.agents import CombrlExplorerLearner
 from ombrl.utils.multiple_reward_wrapper import RewardFunction
 from ombrl.utils.rewards import MountainCarGoLeft
 from jaxrl.wrappers import dmc_env
@@ -12,7 +11,7 @@ from jaxrl.wrappers import dmc_env
 Adapted from: https://github.com/ikostrikov/jaxrl/blob/main/jaxrl/evaluation.py
 """
 
-def evaluate(agent: CombrlExplorerLearner, env: gym.Env, num_episodes: int, reward_list: List[RewardFunction] = None) -> Dict[str, float]:
+def evaluate(agent: object, env: gym.Env, num_episodes: int, reward_list: List[RewardFunction] = None) -> Dict[str, float]:
     stats = {'return': [], 'length': []}
 
     if not reward_list:

@@ -39,7 +39,7 @@ def experiment(
         pseudo_ct: bool = True,
 ):
     from ombrl.utils.autotune_train_utils import train
-    from ..reward_utils import get_dt, get_rewards    
+    from experiments.combrl.reward_utils import get_dt, get_rewards    
     
     env_kwargs = {'action_cost': action_cost,
                   'action_repeat': action_repeat,
@@ -119,7 +119,6 @@ def experiment(
         entity_name=entity_name,
         alg_name=alg_name,
         env_name=env_name,
-        reward_list = get_rewards(env_name),
         alg_kwargs=alg_kwargs,
         env_kwargs=env_kwargs,
         seed=seed,

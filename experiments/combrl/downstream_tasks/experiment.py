@@ -57,7 +57,7 @@ def experiment(
     # import jax
     # jax.config.update("jax_debug_nans", True)
     from ombrl.utils.train_utils import train
-    from ..reward_utils import get_dt, get_rewards
+    from ombrl.utils.rewards import get_dt, get_rewards
 
     env_kwargs = {'action_cost': action_cost,
                   'action_repeat': action_repeat,
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     parser.add_argument('--project_name', type=str, default='CombrlSAC_Test')
     parser.add_argument('--entity_name', type=str, default='kiten')
     parser.add_argument('--alg_name', type=str, default='combrl')
-    parser.add_argument('--env_name', type=str, default='Reacher-v4')
+    parser.add_argument('--env_name', type=str, default='Pendulum-v1')
     # 'Walker2d-v4', 'Swimmer-v4', 'Pusher-v4', 'Reacher-v4'
     # 'HalfCheetah-v4') # 'cheetah-run') # 'Hopper-v4') #'cheetah-run') # 'MountainCarContinuous-v0') # 'cartpole-swingup_sparse') # 
     parser.add_argument('--action_cost', type=float, default=0.0)
