@@ -308,6 +308,7 @@ def train(
             sync_tensorboard=True,
             config=log_config,
             name=run_name,
+            group=exp_hash,
             monitor_gym=True,
             save_code=True)
 
