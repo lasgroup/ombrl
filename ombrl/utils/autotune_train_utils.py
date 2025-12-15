@@ -230,7 +230,7 @@ def train(
         seed: int = 0,
         wandb_log: bool = True,
         log_config: Optional[Dict] = None,
-        logs_dir: str = './logs',
+        logs_dir: str = './logs/',
         save_video: bool = False,
         replay_buffer_size: int = 1_000_000,
         max_steps: int = 1_000_000,

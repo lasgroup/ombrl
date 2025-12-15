@@ -1,26 +1,19 @@
 from experiments.utils import generate_run_commands, generate_base_command, dict_permutations
-from experiments.combrl.auto_tuned_lambda import experiment as exp
+from experiments.maxinfombsac import experiment as exp
 import argparse
 
 PROJECT_NAME = 'MaxInfoMBSAC_Dez_14_11_30_Test_1_DT'
 
-"""
-Pendulum-v1
-MountainCar continuous
-Cartpole swingup sparse
-Hopper hop
-Cheetah run
-Quadruped run
-"""
-
 entity = 'kiten'
 _applicable_configs = {
     'batch_size': [256],
-    'seed': list(range(1)),
+    'seed': list(range(5)),
     'wandb_log': [1],
     'project_name': [PROJECT_NAME],
     'entity_name': [entity],
-    'use_tqdm': [0]
+    'use_tqdm': [0],
+    'pseudo_ct': [0],
+    'predict_diff': [1],
 }
 
 _applicable_configs_sac = {'alg_name': ['maxinfosac', 'sac'],
@@ -31,6 +24,7 @@ _applicable_configs_sac = {'alg_name': ['maxinfosac', 'sac'],
                            } | _applicable_configs
 
 _applicable_configs_mbsac = {'alg_name': ['maxinfombsac'],
+                             'exp_hash': ['maxinfombsac'],
                              'ens_lr': [3e-4],
                              'dyn_ent_lr': [3e-4],
                              'lr': [3e-4],
@@ -43,6 +37,7 @@ _applicable_configs_mbsac = {'alg_name': ['maxinfombsac'],
                              } | _applicable_configs
 
 _applicable_configs_mbmean = {'alg_name': ['maxinfombsac'],
+                              'exp_hash': ['mean'],
                               'ens_lr': [3e-4],
                               'dyn_ent_lr': [0.0],
                               'lr': [3e-4],
@@ -55,6 +50,7 @@ _applicable_configs_mbmean = {'alg_name': ['maxinfombsac'],
                               } | _applicable_configs
 
 _applicable_configs_mbpets = {'alg_name': ['maxinfombsac'],
+                              'exp_hash': ['pets'],
                               'ens_lr': [3e-4],
                               'dyn_ent_lr': [0.0],
                               'lr': [3e-4],
@@ -194,7 +190,7 @@ all_flags_combinations = dict_permutations(configs_gym | _applicable_configs_mbs
                          + dict_permutations(configs_pendulum | _applicable_configs_mbmean) \
                          + dict_permutations(configs_gym | _applicable_configs_mbpets) \
                          + dict_permutations(configs_mountaincar | _applicable_configs_mbpets) \
-                         + dict_permutations(configs_cartpole | _applicable_configs_mbpets) \    
+                         + dict_permutations(configs_cartpole | _applicable_configs_mbpets) \
                          + dict_permutations(configs_pendulum | _applicable_configs_mbpets)
                             
 

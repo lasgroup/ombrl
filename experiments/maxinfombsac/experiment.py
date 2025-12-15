@@ -40,7 +40,6 @@ def experiment(
         predict_diff: bool = True,
 ):
     from ombrl.utils.autotune_train_utils import train
-    from experiments.combrl.reward_utils import get_dt, get_rewards    
     
     env_kwargs = {'action_cost': action_cost,
                   'action_repeat': action_repeat,
@@ -81,7 +80,7 @@ def experiment(
             alg_kwargs['perturb_model'] = perturb_model
             alg_kwargs['pseudo_ct'] = pseudo_ct
             alg_kwargs['predict_diff'] = predict_diff
-            alg_kwargs['dt'] = get_dt(env_name)
+            alg_kwargs['dt'] = None
             alg_kwargs['action_repeat'] = env_kwargs.get('action_repeat', 1)
 
             # set update per step such that critic is updated at least once using real data.
@@ -114,7 +113,7 @@ def experiment(
         'perturb_policy': perturb_policy,
         'perturb_model': perturb_model,
         'pseudo_ct': pseudo_ct,
-        'dt': alg_kwargs['dt'],
+        'predict_diff': predict_diff,
     }
 
     train(
