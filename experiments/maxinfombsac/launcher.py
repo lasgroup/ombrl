@@ -2,7 +2,7 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.maxinfombsac import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MaxInfoMBSAC_Dez_14_11_30_Test_1_DT'
+PROJECT_NAME = 'MaxInfoMBSAC_Dez_15_13_30_Test_2_DT'
 
 entity = 'kiten'
 _applicable_configs = {
@@ -89,7 +89,7 @@ configs_cartpole = {
                  # 'finger-spin',
                  # 'walker-run'
                  ],
-    'max_steps': [250_000],
+    'max_steps': [200_000],
     'eval_interval': [10_000],
     'action_repeat': [2],
     'action_cost': [0.0], #0.1, 0.25, 0.4],
@@ -114,7 +114,7 @@ configs_others = {
 
 configs_mountaincar = {
     'env_name': ['MountainCarContinuous-v0'],
-    'max_steps': [50_000],
+    'max_steps': [25_000],
     'eval_interval': [1_000],
     'action_repeat': [1],
     'num_neurons': [256],
@@ -123,8 +123,8 @@ configs_mountaincar = {
 
 configs_pendulum = {
     'env_name': ['Pendulum-v1'],
-    'max_steps': [50_000],
-    'eval_interval': [1_000],
+    'max_steps': [10_000],
+    'eval_interval': [500],
     'action_repeat': [1],
     'num_neurons': [256],
     'num_hidden_layers': [2],
@@ -143,7 +143,7 @@ configs_gym = {
 
 configs_cheetah = {
     'env_name': ['HalfCheetah-v4'],
-    'max_steps': [2_000_000],
+    'max_steps': [500_000],
     'eval_interval': [20_000],
     'action_repeat': [2],
     'num_neurons': [256],

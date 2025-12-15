@@ -19,7 +19,7 @@ def experiment(
         dyn_wd: float = 0.0,
         seed: int = 0,
         wandb_log: bool = True,
-        logs_dir: str = './logs',
+        logs_dir: str = './logs/',
         save_video: bool = False,
         replay_buffer_size: int = 1_000_000,
         max_steps: int = 1_000_000,
@@ -91,6 +91,7 @@ def experiment(
     log_config = {
         'alg_name': alg_name,
         'action_cost': action_cost,
+        'exp_hash': exp_hash,
         'ens_lr': ens_lr,
         'ens_wd': ens_wd,
         'lr': lr,
@@ -166,7 +167,7 @@ def main(args):
         dyn_wd=args.dyn_wd,
         seed=args.seed,
         wandb_log=bool(args.wandb_log),
-        logs_dir=args.logs_dir + f'/{args.alg_name}/{exp_hash}',
+        logs_dir=args.logs_dir + f'{args.alg_name}/{exp_hash}',
         save_video=bool(args.save_video),
         replay_buffer_size=args.replay_buffer_size,
         max_steps=args.max_steps,
@@ -216,7 +217,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_interval', type=int, default=1_000)
     parser.add_argument('--eval_interval', type=int, default=100)
     parser.add_argument('--eval_episodes', type=int, default=5)
-    parser.add_argument('--exp_hash', type=str, default='SwingUp')
+    parser.add_argument('--exp_hash', type=str, default='auto_tuned_lambda')
     parser.add_argument('--sample_model', type=int, default=0)
     parser.add_argument('--critic_real_data_update_period', type=int, default=2)
     parser.add_argument('--init_temperature_dyn_entropy', type=float, default=1.0)

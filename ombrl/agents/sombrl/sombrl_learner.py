@@ -282,7 +282,7 @@ class SombrlExplorerLearner(object):
                 - int_rew_weight_decrease_steps = -1
                 - sample_model = True
                 - explore_until = 0
-            - OMBRL exploration if:
+            - SOMBRL exploration if:
                 - int_rew_weight_start >= 0
                 - int_rew_weight_start >= int_rew_weight_end >= 0
                 - int_rew_weight_decrease_steps >= 0
@@ -532,7 +532,7 @@ class SombrlExplorerLearner(object):
         int_rew_weight = self.int_rew_weight_schedule(self.step)
 
         if int_rew_weight >= 0:
-            # OMBRL
+            # SOMBRL
             external_reward = batch.rewards
             internal_rewards = expl_batch.rewards
             expl_batch = expl_batch._replace(

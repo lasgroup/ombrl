@@ -109,9 +109,9 @@ configs_humanoid = {
 # add other low dim tasks
 configs_cartpole = {
     'env_name': ['cartpole-swingup_sparse',
-                 'cartpole-balance_sparse',
-                 'cartpole-swingup',
-                 'cartpole-balance',
+                 # 'cartpole-balance_sparse',
+                 # 'cartpole-swingup',
+                 # 'cartpole-balance',
                  # 'reacher-hard',
                  # 'finger-spin',
                  # 'walker-run'

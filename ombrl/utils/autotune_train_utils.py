@@ -25,58 +25,6 @@ from gymnasium.wrappers.pixel_observation import PixelObservationWrapper
 from jaxrl import wrappers
 
 
-def get_dt(
-        env_name: str,
-) -> float:
-    env_timesteps = {
-        "quadruped": 0.005,
-        "fish": 0.004,
-        "cartpole": 0.01,
-        "dog_v2": 0.005,
-        "swimmer": 0.002,
-        "cartpole_suite": 0.01,
-        "test_model": 0.01,
-        "arena": 0.01,
-        "lqr": 0.03,
-        "acrobot": 0.01,
-        "composer_arena": 0.002,
-        "hopper": 0.005,
-        "stacker": 0.001,
-        "humanoid": 0.005,
-        "walker": 0.0025,
-        "drosophila": 0.0001,
-        "dog_base": 0.005,
-        "pendulum": 0.02,
-        "cheetah": 0.01,
-        "dog": 0.005,
-        "reacher": 0.02,
-        "finger": 0.01,
-        "fruitfly_v2": 0.0001,
-        "cartpole_no_names": 0.01,
-        "manipulator": 0.001,
-        "humanoid_suite": 0.005,
-        "point_mass": 0.02,
-        "mountaincar": 1.0,
-        "MountainCarContinuous": 1.0,
-        "Pendulum": 0.05,
-        "HalfCheetah": 0.05,
-        "Hopper": 0.008,
-        "Walker2d": 0.008,
-        "Reacher": 0.02,
-        "Swimmer": 0.04,
-        "Pusher": 0.05,
-        "Humanoid": 0.015,
-    }
-    if env_name in env_timesteps.keys():
-        return env_timesteps.get(env_name)
-    else:
-        domain_name, task_name = env_name.split('-')
-        if domain_name in env_timesteps.keys():
-            return env_timesteps.get(domain_name)
-        else:
-            raise ValueError(f"Invalid environment: {domain_name}")
-
-
 def make_humanoid_bench_env(
         env_name: str,
         seed: int,
@@ -294,7 +242,6 @@ def train(
     random.seed(seed)
 
     if alg_kwargs.get('pseudo_ct', False):
-        alg_kwargs['dt'] = get_dt(env_name)
         alg_kwargs['action_repeat'] = env_kwargs.get('action_repeat', 1)
 
     if wandb_log:

@@ -19,7 +19,7 @@ def experiment(
         dyn_wd: float = 0.0,
         seed: int = 0,
         wandb_log: bool = True,
-        logs_dir: str = './logs',
+        logs_dir: str = './logs/',
         save_video: bool = False,
         replay_buffer_size: int = 1_000_000,
         max_steps: int = 1_000_000,
@@ -168,7 +168,7 @@ def main(args):
         dyn_wd=args.dyn_wd,
         seed=args.seed,
         wandb_log=bool(args.wandb_log),
-        logs_dir=args.logs_dir + f'/{args.alg_name}/{exp_hash}',
+        logs_dir=args.logs_dir + f'{args.alg_name}/{exp_hash}',
         save_video=bool(args.save_video),
         replay_buffer_size=args.replay_buffer_size,
         max_steps=args.max_steps,
@@ -186,7 +186,7 @@ def main(args):
         perturb_model=bool(args.perturb_model),
         use_bronet=bool(args.use_bronet),
         pseudo_ct=bool(args.pseudo_ct),
-        predict_diff=bool(args.pedict_diff),
+        predict_diff=bool(args.predict_diff),
     )
 
 
@@ -219,7 +219,7 @@ if __name__ == '__main__':
     parser.add_argument('--log_interval', type=int, default=1_000)
     parser.add_argument('--eval_interval', type=int, default=100)
     parser.add_argument('--eval_episodes', type=int, default=5)
-    parser.add_argument('--exp_hash', type=str, default='SwingUp') # TODO
+    parser.add_argument('--exp_hash', type=str, default='maxinfombsac')
     parser.add_argument('--sample_model', type=int, default=0)
     parser.add_argument('--critic_real_data_update_period', type=int, default=2)
     parser.add_argument('--init_temperature_dyn_entropy', type=float, default=1.0)
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     parser.add_argument('--perturb_model', type=int, default=1)
     parser.add_argument('--use_bronet', type=int, default=1)
     parser.add_argument('--pseudo_ct', type=int, default=0)
-    parser.add_argument('--pedict_diff', type=int, default=1)
+    parser.add_argument('--predict_diff', type=int, default=1)
 
     parser.add_argument('--seed', type=int, default=0)
 

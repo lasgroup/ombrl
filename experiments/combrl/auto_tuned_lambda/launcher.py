@@ -4,15 +4,6 @@ import argparse
 
 PROJECT_NAME = 'MaxInfoMBSAC_Nov_07_13_30_Test_1_Combrl'
 
-"""
-Pendulum-v1
-MountainCar continuous
-Cartpole swingup sparse
-Hopper hop
-Cheetah run
-Quadruped run
-"""
-
 entity = 'kiten'
 _applicable_configs = {
     'batch_size': [256],
@@ -20,10 +11,11 @@ _applicable_configs = {
     'wandb_log': [1],
     'project_name': [PROJECT_NAME],
     'entity_name': [entity],
-    'use_tqdm': [False]
+    'use_tqdm': [0]
 }
 
 _applicable_configs_sac = {'alg_name': ['maxinfosac', 'sac'],
+                           'exp_hash': ['sac'],
                            'ens_lr': [3e-4],
                            'dyn_ent_lr': [3e-4],
                            'lr': [3e-4],
@@ -31,6 +23,7 @@ _applicable_configs_sac = {'alg_name': ['maxinfosac', 'sac'],
                            } | _applicable_configs
 
 _applicable_configs_mbsac = {'alg_name': ['maxinfombsac'],
+                             'exp_hash': ['maxinfombsac'],
                              'ens_lr': [3e-4],
                              'dyn_ent_lr': [3e-4],
                              'lr': [3e-4],
@@ -43,12 +36,28 @@ _applicable_configs_mbsac = {'alg_name': ['maxinfombsac'],
                              } | _applicable_configs
 
 _applicable_configs_mbmean = {'alg_name': ['maxinfombsac'],
+                              'exp_hash': ['mean'],
                               'ens_lr': [3e-4],
                               'dyn_ent_lr': [0.0],
                               'lr': [3e-4],
-                              'sample_model': [0, 1],
+                              'sample_model': [0],
                               'critic_real_data_update_period': [5],
                               'init_temperature_dyn_entropy': [1e-8],
+                              'perturb_model': [1],
+                              'perturb_policy': [0],
+                              'use_bronet': [1],
+                              } | _applicable_configs
+
+_applicable_configs_mbpets = {'alg_name': ['maxinfombsac'],
+                              'exp_hash': ['pets'],
+                              'ens_lr': [3e-4],
+                              'dyn_ent_lr': [0.0],
+                              'lr': [3e-4],
+                              'sample_model': [1],
+                              'critic_real_data_update_period': [5],
+                              'init_temperature_dyn_entropy': [1e-8],
+                              'perturb_model': [1],
+                              'perturb_policy': [0],
                               'use_bronet': [1],
                               } | _applicable_configs
 
@@ -173,7 +182,10 @@ all_flags_combinations = dict_permutations(configs_others | _applicable_configs_
 all_flags_combinations = dict_permutations(configs_gym | _applicable_configs_mbsac) \
                          + dict_permutations(configs_mountaincar | _applicable_configs_mbsac)\
                          + dict_permutations(configs_gym | _applicable_configs_mbmean) \
-                         + dict_permutations(configs_mountaincar | _applicable_configs_mbmean)
+                         + dict_permutations(configs_mountaincar | _applicable_configs_mbmean) \
+                         + dict_permutations(configs_gym | _applicable_configs_mbpets) \
+                         + dict_permutations(configs_mountaincar | _applicable_configs_mbpets)
+
 
 def main(args):
     command_list = []
