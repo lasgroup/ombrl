@@ -346,6 +346,12 @@ def dict_permutations(d: dict) -> List[dict]:
     return perms
 
 
+def parse_string(s: str):
+    if s == "None" or s is None:
+        return None
+    return np.fromstring(s, sep=',')
+
+
 if __name__ == '__main__':
     # Example for dict_permutations
     d = {

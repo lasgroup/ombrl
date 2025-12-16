@@ -50,6 +50,9 @@ def train(
         n_steps_returns: int = -1,
         recording_image_size: Optional[int] = None,
         eval_episode_trigger: Optional[Callable[[int], bool]] = None,
+        episodic_param_scheduler: Optional[Callable[[int], dict]] = None,
+        episodic_param_apply_fn: Optional[Callable[[gym.Env, dict], None]] = None,
+        init_state: Optional[np.ndarray] = None,
 ):
     run_name = f"{env_name}__{alg_name}__{seed}__{int(time.time())}__{exp_hash}"
 
@@ -59,16 +62,37 @@ def train(
         video_train_folder = None
         video_eval_folder = None
 
-    if env_name in gym.envs.registry.values():
+    if env_name in [env_spec.id for env_spec in gym.envs.registry.values()]:
         env = make_env(env_name=env_name, seed=seed,
                        save_folder=video_train_folder,
                        recording_image_size=recording_image_size,
                        **env_kwargs)
-        eval_env = make_env(env_name=env_name, seed=seed + 42,
-                            save_folder=video_eval_folder,
-                            episode_trigger=eval_episode_trigger,
-                            recording_image_size=recording_image_size,
-                            **env_kwargs)
+        
+        if init_state is not None:
+            raise NotImplementedError("InitWrapper not tested in this version.") # TODO: Test
+            env = InitWrapper(env, init_state=init_state)
+
+        if episodic_param_scheduler is not None:
+            assert episodic_param_apply_fn is not None
+            env = EpisodicParamWrapper(
+                env,
+                scheduler_fn=episodic_param_scheduler,
+                apply_fn=episodic_param_apply_fn,
+                apply_before_reset=True,
+            )
+        
+        eval_env_factory = EvalEnvFactory(
+            make_env_fn=lambda: make_env(
+            env_name=env_name,
+            seed=seed + 42,
+            save_folder=video_eval_folder,
+            episode_trigger=eval_episode_trigger,
+            recording_image_size=recording_image_size,
+            **env_kwargs,
+        ),
+        apply_fn=episodic_param_apply_fn,
+        init_state=init_state,
+    )
         
     else:
         raise NotImplementedError(f'Env {env_name} not implemented in this version.')
@@ -143,6 +167,50 @@ def train(
                              next_observation)
         observation = next_observation
 
+        if i >= training_start:
+            for _ in range(updates_per_step):
+                batch = replay_buffer.sample(batch_size)
+                update_info = agent.update(batch)
+
+            if i % log_interval == 0:
+                for k, v in update_info.items():
+                    summary_writer.add_scalar(f'training/{k}', v, i)
+                summary_writer.flush()
+
+        if i % eval_interval == 0:
+            if episodic_param_scheduler is not None:
+                frozen_params = env.get_current_params()
+                for k, v in frozen_params.items():
+                    summary_writer.add_scalar(
+                        f"env_params/{k}",
+                        float(v),
+                        info["total"]["timesteps"],
+                    )
+                eval_env = eval_env_factory.make(frozen_params)
+            else:
+                # fallback: stationary env
+                eval_env = make_env(
+                    env_name=env_name,
+                    seed=seed + 42,
+                    save_folder=video_eval_folder,
+                    episode_trigger=eval_episode_trigger,
+                    recording_image_size=recording_image_size,
+                    **env_kwargs,
+                )
+
+            eval_stats = evaluate(agent, eval_env, eval_episodes)
+
+            for k, v in eval_stats.items():
+                summary_writer.add_scalar(f'evaluation/average_{k}s', v,
+                                          info['total']['timesteps'])
+            summary_writer.flush()
+
+            eval_returns.append(
+                (info['total']['timesteps'], eval_stats['return']))
+            np.savetxt(os.path.join(logs_dir, f'{seed}.txt'),
+                       eval_returns,
+                       fmt=['%d', '%.1f'])
+        
         if terminate or truncate:
             observation, _ = env.reset()
             terminate = False
@@ -159,27 +227,3 @@ def train(
                 summary_writer.add_scalar(f'training/success',
                                           info['success'],
                                           info['total']['timesteps'])
-
-        if i >= training_start:
-            for _ in range(updates_per_step):
-                batch = replay_buffer.sample(batch_size)
-                update_info = agent.update(batch)
-
-            if i % log_interval == 0:
-                for k, v in update_info.items():
-                    summary_writer.add_scalar(f'training/{k}', v, i)
-                summary_writer.flush()
-
-        if i % eval_interval == 0:
-            eval_stats = evaluate(agent, eval_env, eval_episodes)
-
-            for k, v in eval_stats.items():
-                summary_writer.add_scalar(f'evaluation/average_{k}s', v,
-                                          info['total']['timesteps'])
-            summary_writer.flush()
-
-            eval_returns.append(
-                (info['total']['timesteps'], eval_stats['return']))
-            np.savetxt(os.path.join(logs_dir, f'{seed}.txt'),
-                       eval_returns,
-                       fmt=['%d', '%.1f'])
