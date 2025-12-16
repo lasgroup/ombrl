@@ -11,7 +11,7 @@ from tensorboardX import SummaryWriter
 
 # from jaxrl.agents import DDPGLearner, REDQLearner, SACLearner, DrQLearner
 from maxinforl_jax.agents import MaxInfoSacLearner
-from ombrl.agents import MaxInfoOmbrlLearner
+from ombrl.agents import MaxInfoOmbrlLearner, ContinualMaxInfoLearner
 from jaxrl.datasets import ReplayBuffer
 from maxinforl_jax.datasets import NstepReplayBuffer
 from ombrl.envs.wrappers import InitWrapper, EpisodicParamWrapper, EvalEnvFactory
@@ -130,6 +130,10 @@ def train(
         agent = MaxInfoOmbrlLearner(seed,
                                     env.observation_space.sample(),
                                     env.action_space.sample(), **alg_kwargs)
+    elif alg_name == 'continualmaxinfo':
+        agent = ContinualMaxInfoLearner(seed,
+                                    env.observation_space.sample(),
+                                    env.action_space.sample(), **alg_kwargs)
     else:
         raise NotImplementedError()
     if n_steps_returns < 0:
@@ -170,7 +174,7 @@ def train(
         if i >= training_start:
             for _ in range(updates_per_step):
                 batch = replay_buffer.sample(batch_size)
-                update_info = agent.update(batch)
+                update_info = agent.update(batch, episode_idx=env.episode_idx)
 
             if i % log_interval == 0:
                 for k, v in update_info.items():

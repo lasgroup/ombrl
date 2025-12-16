@@ -2,12 +2,12 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Dez_16_15_30_ChangingEnvs_Test_1'
+PROJECT_NAME = 'MT_Dez_16_18_30_Resets_Test_1'
 
 entity = 'kiten'
 _applicable_configs = {
     'batch_size': [256],
-    'seed': list(range(5)),
+    'seed': list(range(2)),
     'wandb_log': [1],
     'project_name': [PROJECT_NAME],
     'entity_name': [entity],
@@ -37,6 +37,54 @@ _applicable_configs_mbsac = {'alg_name': ['maxinfombsac'],
                              'perturb_policy': [0],
                              'use_bronet': [1],
                              } | _applicable_configs
+
+_applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
+                             'exp_hash': ['continual'],
+                             'ens_lr': [3e-4],
+                             'dyn_ent_lr': [3e-4],
+                             'lr': [3e-4],
+                             'sample_model': [0],
+                             'critic_real_data_update_period': [5],
+                             'init_temperature_dyn_entropy': [1.0],
+                             'use_bronet': [1],
+ 
+                             # resets / perturbations
+                             'perturb_policy': [1],
+                             'perturb_critic': [1],
+                             'perturb_model': [1],
+ 
+                             'policy_perturb_rate': [0, 0.2, 0.5, 1.0],
+                             'critic_perturb_rate': [0, 0.2, 0.5, 1.0],
+                             'model_perturb_rate': [0, 0.2, 0.5, 1.0],
+
+                             'policy_reset_period': [5],
+                             'critic_reset_period': [5],
+                             'model_reset_period': [5],
+                            } | _applicable_configs
+
+_applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
+                             'exp_hash': ['mean'],
+                             'ens_lr': [3e-4],
+                             'dyn_ent_lr': [3e-4],
+                             'lr': [3e-4],
+                             'sample_model': [0],
+                             'critic_real_data_update_period': [5],
+                             'init_temperature_dyn_entropy': [1.0],
+                             'use_bronet': [1],
+ 
+                             # resets / perturbations
+                             'perturb_policy': [0],
+                             'perturb_critic': [0],
+                             'perturb_model': [0],
+ 
+                             'policy_perturb_rate': [0],
+                             'critic_perturb_rate': [0],
+                             'model_perturb_rate': [0],
+ 
+                             'policy_reset_period': [999],
+                             'critic_reset_period': [999],
+                             'model_reset_period': [999],
+                            } | _applicable_configs
 
 _applicable_configs_mbmean = {'alg_name': ['maxinfombsac'],
                               'exp_hash': ['mean'],
@@ -181,8 +229,10 @@ all_flags_combinations = dict_permutations(configs_others | _applicable_configs_
                          + dict_permutations(configs_mountaincar | _applicable_configs_mbmean)\
                          + dict_permutations(configs_humanoid | _applicable_configs_mbmean)
 """
-all_flags_combinations = dict_permutations(configs_pendulum | _applicable_configs_mbsac)
-                        
+all_flags_combinations = (
+    dict_permutations(configs_pendulum | _applicable_configs_continual)
+    + dict_permutations(configs_pendulum | _applicable_configs_continual_mean)
+)                        
 
 def main(args):
     command_list = []

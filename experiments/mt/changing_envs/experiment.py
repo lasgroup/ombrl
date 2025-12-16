@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 from experiments.utils import hash_dict, parse_string
 from typing import Optional, Callable
-import gym
+import gymnasium as gym
 from optax.schedules import linear_schedule
 
 
@@ -38,7 +38,14 @@ def experiment(
         use_bronet: bool = True,
         init_temperature_dyn_entropy: float = 1.0,
         perturb_policy: bool = True,
+        perturb_critic: bool = True,
         perturb_model: bool = True,
+        policy_perturb_rate: float = 0.2,
+        critic_perturb_rate: float = 0.2,
+        model_perturb_rate: float = 0.2,
+        policy_reset_period: int = 5,
+        critic_reset_period: int = 5,
+        model_reset_period: int = 5,
         pseudo_ct: bool = False,
         predict_diff: bool = True,
         env_param_mode: str = 'stationary',
@@ -71,7 +78,8 @@ def experiment(
     # do soft resets of the model every few steps
     reset_models = True
     replay_buffer_size = min(replay_buffer_size, max_steps)
-    if alg_name == 'maxinfosac' or alg_name == 'maxinfombsac':
+    if alg_name == 'maxinfosac' or alg_name == 'maxinfombsac'\
+        or alg_name == 'continualmaxinfo':
         alg_kwargs['dyn_ent_lr'] = dyn_ent_lr
         alg_kwargs['dyn_wd'] = dyn_wd
         alg_kwargs['ens_lr'] = ens_lr
@@ -93,6 +101,26 @@ def experiment(
 
             # set update per step such that critic is updated at least once using real data.
             updates_per_step = critic_real_data_update_period * updates_per_step
+        elif alg_name == 'continualmaxinfo':
+            alg_kwargs.update(dict(
+                sample_model=sample_model,
+                critic_real_data_update_period=critic_real_data_update_period,
+                max_gradient_norm=max_gradient_norm,
+                reset_models=reset_models,
+                perturb_policy=perturb_policy,
+                perturb_critic=perturb_critic,
+                perturb_model=perturb_model,
+                policy_perturb_rate = policy_perturb_rate,
+                critic_perturb_rate = critic_perturb_rate,
+                model_perturb_rate = model_perturb_rate,
+                policy_reset_period=policy_reset_period,
+                critic_reset_period=critic_reset_period,
+                model_reset_period=model_reset_period, 
+                pseudo_ct=pseudo_ct,
+                predict_diff=predict_diff,
+                dt=None,
+                action_repeat=env_kwargs.get('action_repeat', 1),
+            ))
 
     model_update_delay = 1
 
@@ -124,14 +152,20 @@ def experiment(
         'predict_diff': predict_diff,
         'env_param_mode': env_param_mode,
         'init_state': init_state,
+        'policy_perturb_rate': policy_perturb_rate,
+        'critic_perturb_rate': critic_perturb_rate,
+        'model_perturb_rate': model_perturb_rate,
+        'policy_reset_period': policy_reset_period,
+        'critic_reset_period': critic_reset_period,
+        'model_reset_period': model_reset_period,
     }
 
     if env_param_mode == 'episodic':
         if env_name == 'Pendulum-v1':
             pendulum_max_torque_init = 2.0
             pendulum_max_torque_final = 0.5
-            pendulum_max_torque_transition_steps = 20
-            pendulum_max_torque_transition_begin = 20
+            pendulum_max_torque_transition_steps = 10
+            pendulum_max_torque_transition_begin = 5
             torque_schedule = linear_schedule(
                 init_value=pendulum_max_torque_init,
                 end_value=pendulum_max_torque_final,
@@ -226,7 +260,14 @@ def main(args):
         critic_real_data_update_period=args.critic_real_data_update_period,
         init_temperature_dyn_entropy=args.init_temperature_dyn_entropy,
         perturb_policy=bool(args.perturb_policy),
+        perturb_critic=bool(args.perturb_critic),
         perturb_model=bool(args.perturb_model),
+        policy_perturb_rate=args.policy_perturb_rate,
+        critic_perturb_rate=args.critic_perturb_rate,
+        model_perturb_rate=args.model_perturb_rate,
+        policy_reset_period=args.policy_reset_period,
+        critic_reset_period=args.critic_reset_period,
+        model_reset_period=args.model_reset_period,
         use_bronet=bool(args.use_bronet),
         pseudo_ct=bool(args.pseudo_ct),
         predict_diff=bool(args.predict_diff),
@@ -242,7 +283,7 @@ if __name__ == '__main__':
     parser.add_argument('--logs_dir', type=str, default='./logs/')
     parser.add_argument('--project_name', type=str, default='MT_Test')
     parser.add_argument('--entity_name', type=str, default='kiten')
-    parser.add_argument('--alg_name', type=str, default='maxinfombsac')
+    parser.add_argument('--alg_name', type=str, default='continualmaxinfo')
     parser.add_argument('--env_name', type=str, default='Pendulum-v1')
     # 'Pendulum-v1', 'Walker2d-v4', 'Swimmer-v4', 'Pusher-v4', 'Reacher-v4', 'Humanoid-v4'
     parser.add_argument('--action_cost', type=float, default=0.0)
@@ -269,7 +310,16 @@ if __name__ == '__main__':
     parser.add_argument('--critic_real_data_update_period', type=int, default=2)
     parser.add_argument('--init_temperature_dyn_entropy', type=float, default=1.0)
     parser.add_argument('--perturb_policy', type=int, default=1)
+    parser.add_argument('--perturb_critic', type=int, default=1)
     parser.add_argument('--perturb_model', type=int, default=1)
+
+    parser.add_argument('--policy_perturb_rate', type=float, default=0.2)
+    parser.add_argument('--critic_perturb_rate', type=float, default=0.2)
+    parser.add_argument('--model_perturb_rate', type=float, default=0.2)
+
+    parser.add_argument('--policy_reset_period', type=int, default=5)
+    parser.add_argument('--critic_reset_period', type=int, default=5)
+    parser.add_argument('--model_reset_period', type=int, default=5)
     parser.add_argument('--use_bronet', type=int, default=1)
     parser.add_argument('--pseudo_ct', type=int, default=0)
     parser.add_argument('--predict_diff', type=int, default=1)
