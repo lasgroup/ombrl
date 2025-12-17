@@ -2,20 +2,21 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Dez_16_18_30_Resets_Test_1'
+PROJECT_NAME = 'MT_Dez_17_16_30_Compare_NoResets_Test_1'
 
 entity = 'kiten'
 _applicable_configs = {
     'batch_size': [256],
-    'seed': list(range(2)),
+    'seed': list(range(5)),
     'wandb_log': [1],
     'project_name': [PROJECT_NAME],
     'entity_name': [entity],
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'env_param_mode': ['stationary', 'episodic'],
+    'env_param_mode': ['episodic'],
     'init_state': ['None'],
+    'reset_models': [0], # TODO
 }
 
 _applicable_configs_sac = {'alg_name': ['maxinfosac', 'sac'],
@@ -173,7 +174,7 @@ configs_mountaincar = {
 
 configs_pendulum = {
     'env_name': ['Pendulum-v1'],
-    'max_steps': [4_000],
+    'max_steps': [6_000],
     'eval_interval': [200],
     'action_repeat': [1],
     'num_neurons': [256],
@@ -230,8 +231,8 @@ all_flags_combinations = dict_permutations(configs_others | _applicable_configs_
                          + dict_permutations(configs_humanoid | _applicable_configs_mbmean)
 """
 all_flags_combinations = (
-    dict_permutations(configs_pendulum | _applicable_configs_continual)
-    + dict_permutations(configs_pendulum | _applicable_configs_continual_mean)
+    # dict_permutations(configs_pendulum | _applicable_configs_continual)
+    dict_permutations(configs_pendulum | _applicable_configs_continual_mean)
 )                        
 
 def main(args):

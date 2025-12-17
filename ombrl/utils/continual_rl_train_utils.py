@@ -80,6 +80,8 @@ def train(
                 apply_fn=episodic_param_apply_fn,
                 apply_before_reset=True,
             )
+        else:
+            env.episode_idx = -1  # for logging purposes
         
         eval_env_factory = EvalEnvFactory(
             make_env_fn=lambda: make_env(

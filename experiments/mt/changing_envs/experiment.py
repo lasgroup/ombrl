@@ -37,6 +37,7 @@ def experiment(
         critic_real_data_update_period: int = 2,
         use_bronet: bool = True,
         init_temperature_dyn_entropy: float = 1.0,
+        reset_models:  bool = True,
         perturb_policy: bool = True,
         perturb_critic: bool = True,
         perturb_model: bool = True,
@@ -76,7 +77,7 @@ def experiment(
     updates_per_step = 1
     reset_period = 500_000
     # do soft resets of the model every few steps
-    reset_models = True
+    reset_models = reset_models
     replay_buffer_size = min(replay_buffer_size, max_steps)
     if alg_name == 'maxinfosac' or alg_name == 'maxinfombsac'\
         or alg_name == 'continualmaxinfo':
@@ -259,6 +260,7 @@ def main(args):
         sample_model=bool(args.sample_model),
         critic_real_data_update_period=args.critic_real_data_update_period,
         init_temperature_dyn_entropy=args.init_temperature_dyn_entropy,
+        reset_models=bool(args.reset_models),
         perturb_policy=bool(args.perturb_policy),
         perturb_critic=bool(args.perturb_critic),
         perturb_model=bool(args.perturb_model),
@@ -283,7 +285,7 @@ if __name__ == '__main__':
     parser.add_argument('--logs_dir', type=str, default='./logs/')
     parser.add_argument('--project_name', type=str, default='MT_Test')
     parser.add_argument('--entity_name', type=str, default='kiten')
-    parser.add_argument('--alg_name', type=str, default='continualmaxinfo')
+    parser.add_argument('--alg_name', type=str, default='maxinfombsac')
     parser.add_argument('--env_name', type=str, default='Pendulum-v1')
     # 'Pendulum-v1', 'Walker2d-v4', 'Swimmer-v4', 'Pusher-v4', 'Reacher-v4', 'Humanoid-v4'
     parser.add_argument('--action_cost', type=float, default=0.0)
@@ -309,6 +311,8 @@ if __name__ == '__main__':
     parser.add_argument('--sample_model', type=int, default=0)
     parser.add_argument('--critic_real_data_update_period', type=int, default=2)
     parser.add_argument('--init_temperature_dyn_entropy', type=float, default=1.0)
+    parser.add_argument('--reset_models', type=int, default=1)
+
     parser.add_argument('--perturb_policy', type=int, default=1)
     parser.add_argument('--perturb_critic', type=int, default=1)
     parser.add_argument('--perturb_model', type=int, default=1)
@@ -323,7 +327,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_bronet', type=int, default=1)
     parser.add_argument('--pseudo_ct', type=int, default=0)
     parser.add_argument('--predict_diff', type=int, default=1)
-    parser.add_argument('--env_param_mode', type=str, default='episodic', choices=['stationary', 'episodic'])
+    parser.add_argument('--env_param_mode', type=str, default='stationary', choices=['stationary', 'episodic'])
     parser.add_argument('--init_state', type=str, default="None", help="Initial state for environment")
 
     parser.add_argument('--seed', type=int, default=0)

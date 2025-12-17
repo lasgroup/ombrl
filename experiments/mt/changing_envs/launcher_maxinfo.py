@@ -2,20 +2,21 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Dez_17_11_30_Maxinfombsac_Test_1'
+PROJECT_NAME = 'MT_Dez_17_16_30_Compare_NoResets_Test_1'
 
 entity = 'kiten'
 _applicable_configs = {
     'batch_size': [256],
-    'seed': list(range(2)),
+    'seed': list(range(5)),
     'wandb_log': [1],
     'project_name': [PROJECT_NAME],
     'entity_name': [entity],
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'env_param_mode': ['stationary', 'episodic'],
+    'env_param_mode': ['episodic'],
     'init_state': ['None'],
+    'reset_models': [0], # TODO
 }
 
 _applicable_configs_sac = {'alg_name': ['maxinfosac', 'sac'],
@@ -125,7 +126,7 @@ configs_mountaincar = {
 
 configs_pendulum = {
     'env_name': ['Pendulum-v1'],
-    'max_steps': [4_000],
+    'max_steps': [6_000],
     'eval_interval': [200],
     'action_repeat': [1],
     'num_neurons': [256],
@@ -183,7 +184,6 @@ all_flags_combinations = dict_permutations(configs_others | _applicable_configs_
 """
 all_flags_combinations = (
     dict_permutations(configs_pendulum | _applicable_configs_mbsac)
-    + dict_permutations(configs_pendulum | _applicable_configs_mbsac)
 )                        
 
 def main(args):
@@ -207,8 +207,8 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--num_cpus', type=int, default=1, help='number of cpus to use')
-    parser.add_argument('--num_gpus', type=int, default=1, help='number of gpus to use')
-    parser.add_argument('--mode', type=str, default='euler', help='how to launch the experiments')
+    parser.add_argument('--num_gpus', type=int, default=0, help='number of gpus to use')
+    parser.add_argument('--mode', type=str, default='local', help='how to launch the experiments')
     parser.add_argument('--long_run', default=False, action="store_true")
 
     args = parser.parse_args()
