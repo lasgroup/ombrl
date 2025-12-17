@@ -401,7 +401,7 @@ class MaxInfoOmbrlLearner(object):
         actions = np.asarray(actions)
         return np.clip(actions, -1, 1)
 
-    def update(self, batch: Batch) -> InfoDict:
+    def update(self, batch: Batch, episode_idx: int = None) -> InfoDict:
         if self._reset_models:
             rng, self.rng = jax.random.split(self.rng)
             actor, critic, target_actor, target_critic, new_ens_state = self.perturb_module.perturb(
