@@ -122,6 +122,7 @@ def experiment(
                 dt=None,
                 action_repeat=env_kwargs.get('action_repeat', 1),
             ))
+            updates_per_step = critic_real_data_update_period * updates_per_step
 
     model_update_delay = 1
 
@@ -135,6 +136,9 @@ def experiment(
         'lr': lr,
         'dyn_ent_lr': dyn_ent_lr,
         'dyn_wd': dyn_wd,
+        'batch_size': batch_size,
+        'seed': seed,
+        'training_start': training_start,
         'num_neurons': num_neurons,
         'num_hidden_layers': num_hidden_layers,
         'action_repeat': action_repeat,
@@ -144,6 +148,7 @@ def experiment(
         'critic_real_data_update_period': critic_real_data_update_period,
         'use_bronet': use_bronet,
         'max_gradient_norm': max_gradient_norm,
+        'updates_per_step': updates_per_step,
         'init_temperature_dyn_entropy': init_temperature_dyn_entropy,
         'reset_models': reset_models,
         'reset_period': reset_period,
