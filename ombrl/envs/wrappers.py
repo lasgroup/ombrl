@@ -98,14 +98,15 @@ class EpisodicParamWrapper(gym.Wrapper):
 
         # Sample parameters for this episode
         self.current_params = dict(self.scheduler_fn(self.episode_idx))
+        base_env = self.env.unwrapped
 
         if self.apply_before_reset:
-            self.apply_fn(self.env, self.current_params)
+            self.apply_fn(base_env, self.current_params)
 
         obs, info = self.env.reset(seed=seed, options=options)
 
         if not self.apply_before_reset:
-            self.apply_fn(self.env, self.current_params)
+            self.apply_fn(base_env, self.current_params)
 
         info = dict(info)
         info.update(self.current_params)
@@ -181,6 +182,8 @@ if __name__ == "__main__":
 
     def apply_fn(base_env: gym.Env, params: dict):
         base_env.max_torque = params["max_torque"]
+        base_env.action_space.low[:] = -params["max_torque"]
+        base_env.action_space.high[:] = params["max_torque"]
 
     env = EpisodicParamWrapper(env, scheduler_fn, apply_fn)
 

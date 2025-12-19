@@ -2,21 +2,21 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Dez_17_16_30_Compare_NoResets_Test_1'
+PROJECT_NAME = 'MT_Dez_19_12_00_Compare_NoResets_Test_4'
 
 entity = 'kiten'
 _applicable_configs = {
     'batch_size': [256],
-    'seed': list(range(5)),
+    'seed': list(range(3)),
     'wandb_log': [1],
     'project_name': [PROJECT_NAME],
     'entity_name': [entity],
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'env_param_mode': ['episodic'],
+    'env_param_mode': ['stationary','episodic'],
     'init_state': ['None'],
-    'reset_models': [0], # TODO
+    'reset_models': [1],
 }
 
 _applicable_configs_sac = {'alg_name': ['maxinfosac', 'sac'],
@@ -230,10 +230,8 @@ all_flags_combinations = dict_permutations(configs_others | _applicable_configs_
                          + dict_permutations(configs_mountaincar | _applicable_configs_mbmean)\
                          + dict_permutations(configs_humanoid | _applicable_configs_mbmean)
 """
-all_flags_combinations = (
-    # dict_permutations(configs_pendulum | _applicable_configs_continual)
-    dict_permutations(configs_pendulum | _applicable_configs_continual_mean)
-)                        
+all_flags_combinations = dict_permutations(configs_pendulum | _applicable_configs_continual)\
+    + dict_permutations(configs_pendulum | _applicable_configs_continual_mean)                    
 
 def main(args):
     command_list = []
@@ -250,7 +248,7 @@ def main(args):
     # submit jobs
     num_hours = 23 if args.long_run else 3
     generate_run_commands(command_list, num_cpus=args.num_cpus, num_gpus=args.num_gpus,
-                          mode=args.mode, duration=f'{num_hours}:59:00', prompt=True, mem=32000)
+                          mode=args.mode, duration=f'{num_hours}:59:00', prompt=True, mem=2000)
 
 
 if __name__ == '__main__':

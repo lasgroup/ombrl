@@ -189,6 +189,8 @@ def experiment(
 
             def apply_fn(base_env: gym.Env, params: dict):
                 base_env.max_torque = params["max_torque"]
+                base_env.action_space.low[:] = -params["max_torque"]
+                base_env.action_space.high[:] = params["max_torque"]
         else:
             raise NotImplementedError(f"Episodic param mode not implemented for env {env_name}")
     elif env_param_mode == 'stationary':
@@ -290,11 +292,11 @@ if __name__ == '__main__':
     parser.add_argument('--logs_dir', type=str, default='./logs/')
     parser.add_argument('--project_name', type=str, default='MT_Test')
     parser.add_argument('--entity_name', type=str, default='kiten')
-    parser.add_argument('--alg_name', type=str, default='maxinfombsac')
+    parser.add_argument('--alg_name', type=str, default='continualmaxinfo')
     parser.add_argument('--env_name', type=str, default='Pendulum-v1')
     # 'Pendulum-v1', 'Walker2d-v4', 'Swimmer-v4', 'Pusher-v4', 'Reacher-v4', 'Humanoid-v4'
     parser.add_argument('--action_cost', type=float, default=0.0)
-    parser.add_argument('--action_repeat', type=int, default=2)
+    parser.add_argument('--action_repeat', type=int, default=1)
     parser.add_argument('--ens_lr', type=float, default=3e-4)
     parser.add_argument('--dyn_ent_lr', type=float, default=3e-4)
     parser.add_argument('--lr', type=float, default=3e-4)
@@ -305,12 +307,12 @@ if __name__ == '__main__':
     parser.add_argument('--wandb_log', type=int, default=1)
     parser.add_argument('--save_video', type=int, default=0)
     parser.add_argument('--replay_buffer_size', type=int, default=1_000_000)
-    parser.add_argument('--max_steps', type=int, default=1_000)
+    parser.add_argument('--max_steps', type=int, default=4_000)
     parser.add_argument('--use_tqdm', type=int, default=1)
     parser.add_argument('--training_start', type=int, default=0)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--log_interval', type=int, default=1_000)
-    parser.add_argument('--eval_interval', type=int, default=100)
+    parser.add_argument('--eval_interval', type=int, default=400)
     parser.add_argument('--eval_episodes', type=int, default=5)
     parser.add_argument('--exp_hash', type=str, default='maxinfombsac')
     parser.add_argument('--sample_model', type=int, default=0)
@@ -332,7 +334,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_bronet', type=int, default=1)
     parser.add_argument('--pseudo_ct', type=int, default=0)
     parser.add_argument('--predict_diff', type=int, default=1)
-    parser.add_argument('--env_param_mode', type=str, default='stationary', choices=['stationary', 'episodic'])
+    parser.add_argument('--env_param_mode', type=str, default='episodic', choices=['stationary', 'episodic'])
     parser.add_argument('--init_state', type=str, default="None", help="Initial state for environment")
 
     parser.add_argument('--seed', type=int, default=0)
