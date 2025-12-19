@@ -35,6 +35,7 @@ def experiment(
         exp_hash: str = '',
         sample_model: bool = False,
         critic_real_data_update_period: int = 2,
+        updates_per_step: int = 1,
         use_bronet: bool = True,
         init_temperature_dyn_entropy: float = 1.0,
         reset_models:  bool = True,
@@ -74,7 +75,7 @@ def experiment(
         'use_bronet': use_bronet,
     }
     max_gradient_norm = 0.5
-    updates_per_step = 1
+    updates_per_step = updates_per_step
     reset_period = 500_000
     # do soft resets of the model every few steps
     reset_models = reset_models
@@ -138,6 +139,9 @@ def experiment(
         'dyn_wd': dyn_wd,
         'batch_size': batch_size,
         'seed': seed,
+        'save_video': save_video,
+        'replay_buffer_size': replay_buffer_size,
+        'max_steps': max_steps,
         'training_start': training_start,
         'num_neurons': num_neurons,
         'num_hidden_layers': num_hidden_layers,
@@ -266,6 +270,7 @@ def main(args):
         exp_hash=args.exp_hash,
         sample_model=bool(args.sample_model),
         critic_real_data_update_period=args.critic_real_data_update_period,
+        updates_per_step=args.updates_per_step,
         init_temperature_dyn_entropy=args.init_temperature_dyn_entropy,
         reset_models=bool(args.reset_models),
         perturb_policy=bool(args.perturb_policy),
@@ -317,6 +322,7 @@ if __name__ == '__main__':
     parser.add_argument('--exp_hash', type=str, default='maxinfombsac')
     parser.add_argument('--sample_model', type=int, default=0)
     parser.add_argument('--critic_real_data_update_period', type=int, default=2)
+    parser.add_argument('--updates_per_step', type=int, default=1)
     parser.add_argument('--init_temperature_dyn_entropy', type=float, default=1.0)
     parser.add_argument('--reset_models', type=int, default=1)
 
