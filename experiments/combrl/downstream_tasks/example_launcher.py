@@ -1,5 +1,5 @@
 from experiments.utils import generate_run_commands, generate_base_command, dict_permutations
-from experiments.downstream_tasks import experiment as exp
+from experiments.combrl.downstream_tasks import experiment as exp
 import argparse
 
 PROJECT_NAME = 'COMBRL_SAC'
