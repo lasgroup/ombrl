@@ -3,7 +3,7 @@ import argparse
 from experiments.utils import hash_dict, parse_string
 from typing import Optional, Callable
 import gymnasium as gym
-from optax.schedules import linear_schedule
+from optax.schedules import linear_schedule, constant_schedule
 
 
 def experiment(
@@ -172,8 +172,8 @@ def experiment(
 
     if env_param_mode == 'episodic':
         if env_name == 'Pendulum-v1':
-            pendulum_max_torque_init = 2.0
-            pendulum_max_torque_final = 0.5
+            pendulum_max_torque_init = 4.0
+            pendulum_max_torque_final = 2.0
             pendulum_max_torque_transition_steps = 10
             pendulum_max_torque_transition_begin = 5
             torque_schedule = linear_schedule(
@@ -197,6 +197,35 @@ def experiment(
                 base_env.action_space.high[:] = params["max_torque"]
         else:
             raise NotImplementedError(f"Episodic param mode not implemented for env {env_name}")
+        
+    elif env_param_mode == 'maximal':
+        if env_name == 'Pendulum-v1':
+            def scheduler_fn(ep_idx: int):
+                return {"max_torque": float(constant_schedule(4.0)(ep_idx))}
+            def apply_fn(base_env: gym.Env, params: dict):
+                base_env.max_torque = params["max_torque"]
+                base_env.action_space.low[:] = -params["max_torque"]
+                base_env.action_space.high[:] = params["max_torque"]
+            log_config["pendulum_max_torque"] = 4.0
+
+    elif env_param_mode == 'step':
+        if env_name == 'Pendulum-v1':
+            def scheduler_fn(episode_idx: int):
+                step_change_episode = 10
+                if episode_idx < step_change_episode:
+                    return {"max_torque": 4.0}
+                else:
+
+                    return {"max_torque": 2.0}
+            def apply_fn(base_env: gym.Env, params: dict):
+                base_env.max_torque = params["max_torque"]
+                base_env.action_space.low[:] = -params["max_torque"]
+                base_env.action_space.high[:] = params["max_torque"]
+
+            log_config["pendulum_step_change_episode"] = 10
+            log_config["pendulum_max_torque_init"] = 4.0
+            log_config["pendulum_max_torque_final"] = 2.0
+
     elif env_param_mode == 'stationary':
         scheduler_fn: Optional[Callable[[int], dict]] = None
         apply_fn: Optional[Callable[[gym.Env, dict], None]] = None
@@ -310,18 +339,18 @@ if __name__ == '__main__':
     parser.add_argument('--num_neurons', type=int, default=256)
     parser.add_argument('--num_hidden_layers', type=int, default=2)
     parser.add_argument('--wandb_log', type=int, default=1)
-    parser.add_argument('--save_video', type=int, default=0)
+    parser.add_argument('--save_video', type=int, default=1)
     parser.add_argument('--replay_buffer_size', type=int, default=1_000_000)
     parser.add_argument('--max_steps', type=int, default=4_000)
     parser.add_argument('--use_tqdm', type=int, default=1)
     parser.add_argument('--training_start', type=int, default=0)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--log_interval', type=int, default=1_000)
-    parser.add_argument('--eval_interval', type=int, default=400)
+    parser.add_argument('--eval_interval', type=int, default=200)
     parser.add_argument('--eval_episodes', type=int, default=5)
     parser.add_argument('--exp_hash', type=str, default='maxinfombsac')
     parser.add_argument('--sample_model', type=int, default=0)
-    parser.add_argument('--critic_real_data_update_period', type=int, default=2)
+    parser.add_argument('--critic_real_data_update_period', type=int, default=5)
     parser.add_argument('--updates_per_step', type=int, default=1)
     parser.add_argument('--init_temperature_dyn_entropy', type=float, default=1.0)
     parser.add_argument('--reset_models', type=int, default=1)
@@ -334,14 +363,14 @@ if __name__ == '__main__':
     parser.add_argument('--critic_perturb_rate', type=float, default=0.2)
     parser.add_argument('--model_perturb_rate', type=float, default=0.2)
 
-    parser.add_argument('--policy_reset_period', type=int, default=5)
-    parser.add_argument('--critic_reset_period', type=int, default=5)
-    parser.add_argument('--model_reset_period', type=int, default=5)
+    parser.add_argument('--policy_reset_period', type=int, default=999)
+    parser.add_argument('--critic_reset_period', type=int, default=999)
+    parser.add_argument('--model_reset_period', type=int, default=999)
     parser.add_argument('--use_bronet', type=int, default=1)
     parser.add_argument('--pseudo_ct', type=int, default=0)
     parser.add_argument('--predict_diff', type=int, default=1)
-    parser.add_argument('--env_param_mode', type=str, default='episodic', choices=['stationary', 'episodic'])
-    parser.add_argument('--init_state', type=str, default="None", help="Initial state for environment")
+    parser.add_argument('--env_param_mode', type=str, default='stationary', choices=['stationary', 'episodic', 'maximal', 'step'])
+    parser.add_argument('--init_state', type=str, default="3.1415,0.0", help="Initial state for environment")
 
     parser.add_argument('--seed', type=int, default=0)
 

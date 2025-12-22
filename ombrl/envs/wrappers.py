@@ -152,8 +152,8 @@ class EvalEnvFactory:
         self.apply_fn = apply_fn
         self.init_state = init_state
 
-    def make(self, frozen_params: dict) -> gym.Env:
-        env = self.make_env_fn()
+    def make(self, frozen_params: dict, *args) -> gym.Env:
+        env = self.make_env_fn(args)
 
         if self.init_state is not None:
             env = InitWrapper(env, self.init_state)

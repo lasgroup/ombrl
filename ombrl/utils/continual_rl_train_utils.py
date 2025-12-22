@@ -57,7 +57,9 @@ def train(
     run_name = f"{env_name}__{alg_name}__{seed}__{int(time.time())}__{exp_hash}"
 
     if save_video:
-        raise NotImplementedError("Video recording not implemented in this version.")
+        video_train_folder = None
+        video_eval_folder = os.path.join(logs_dir, run_name, "videos_eval")
+        eval_episode_trigger = lambda _: True # always record eval episode
     else:
         video_train_folder = None
         video_eval_folder = None
@@ -69,7 +71,7 @@ def train(
                        **env_kwargs)
         
         if init_state is not None:
-            raise NotImplementedError("InitWrapper not tested in this version.") # TODO: Test
+            # raise NotImplementedError("InitWrapper not tested in this version.") # TODO: Test
             env = InitWrapper(env, init_state=init_state)
 
         if episodic_param_scheduler is not None:
@@ -84,10 +86,10 @@ def train(
             env.episode_idx = -1  # for logging purposes
         
         eval_env_factory = EvalEnvFactory(
-            make_env_fn=lambda: make_env(
+            make_env_fn=lambda folder_name: make_env(
             env_name=env_name,
             seed=seed + 42,
-            save_folder=video_eval_folder,
+            save_folder=folder_name,
             episode_trigger=eval_episode_trigger,
             recording_image_size=recording_image_size,
             **env_kwargs,
@@ -184,6 +186,14 @@ def train(
                 summary_writer.flush()
 
         if i % eval_interval == 0:
+            if save_video and video_eval_folder is not None:
+                video_folder_name = os.path.join(
+                    video_eval_folder,
+                    f'episode_{env.episode_idx}_step_{i}',
+                )
+            else:
+                video_folder_name = None
+                
             if episodic_param_scheduler is not None:
                 frozen_params = env.get_current_params()
                 for k, v in frozen_params.items():
@@ -192,17 +202,19 @@ def train(
                         float(v),
                         info["total"]["timesteps"],
                     )
-                eval_env = eval_env_factory.make(frozen_params)
+                eval_env = eval_env_factory.make(frozen_params, video_folder_name)
             else:
                 # fallback: stationary env
                 eval_env = make_env(
                     env_name=env_name,
                     seed=seed + 42,
-                    save_folder=video_eval_folder,
+                    save_folder=video_folder_name,
                     episode_trigger=eval_episode_trigger,
                     recording_image_size=recording_image_size,
                     **env_kwargs,
                 )
+                if init_state is not None:
+                    eval_env = InitWrapper(eval_env, init_state=init_state)
 
             eval_stats = evaluate(agent, eval_env, eval_episodes)
 
