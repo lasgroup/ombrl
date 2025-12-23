@@ -2,7 +2,7 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Dez_22_18_30_NoResets_DifferentModes_Test_1'
+PROJECT_NAME = 'MT_Dez_23_14_30_Resets_Test_1'
 
 entity = 'kiten'
 _applicable_configs = {
@@ -14,10 +14,10 @@ _applicable_configs = {
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'env_param_mode': ['stationary','step','episodic','maximal'],
     'init_state': ["3.1415,0.0"],
     'reset_models': [1],
-    'save_video': [1],
+    'save_video': [0],
+    'eval_episodes': [5],
 }
 
 _applicable_configs_sac = {'alg_name': ['maxinfosac', 'sac'],
@@ -47,25 +47,28 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'lr': [3e-4],
                              'sample_model': [0],
                              'critic_real_data_update_period': [5],
-                             'updates_per_step': [1,2,4,8],
+                             'updates_per_step': [20],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
+                             'env_param_mode': ['minimal', 'maximal', 'stationary', 'step', 'episodic'],
+
 
                              # replay_buffer_size
-                             'replay_buffer_size': [1_000],
+                             'replay_buffer_mode': ['none', 'window'],
+                             'replay_buffer_size': [2_000], # TODO ablate
 
-                             # resets / perturbations
+                              # resets / perturbations
                              'perturb_policy': [1],
                              'perturb_critic': [1],
                              'perturb_model': [1],
  
                              'policy_perturb_rate': [0, 0.2, 1.0],
-                             'critic_perturb_rate': [0, 0.2, 1.0],
+                             'critic_perturb_rate': [-1],
                              'model_perturb_rate': [0, 0.2, 1.0],
 
-                             'policy_reset_period': [5],
-                             'critic_reset_period': [5],
-                             'model_reset_period': [5],
+                             'policy_reset_period': [10], # TODO ablate
+                             'critic_reset_period': [10], # TODO ablate
+                             'model_reset_period': [10], # TODO ablate
                             } | _applicable_configs
 
 _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
@@ -75,10 +78,15 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'lr': [3e-4],
                              'sample_model': [0],
                              'critic_real_data_update_period': [5],
-                             'updates_per_step': [1],
+                             'updates_per_step': [20],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
- 
+                             'env_param_mode': ['minimal', 'maximal', 'stationary', 'step', 'episodic'],
+
+                              # replay_buffer_size
+                             'replay_buffer_mode': ['none'],
+                             'replay_buffer_size': [6_000],
+
                              # resets / perturbations
                              'perturb_policy': [0],
                              'perturb_critic': [0],
@@ -236,7 +244,8 @@ all_flags_combinations = dict_permutations(configs_others | _applicable_configs_
                          + dict_permutations(configs_mountaincar | _applicable_configs_mbmean)\
                          + dict_permutations(configs_humanoid | _applicable_configs_mbmean)
 """
-all_flags_combinations = dict_permutations(configs_pendulum | _applicable_configs_continual_mean)                    
+all_flags_combinations = dict_permutations(configs_pendulum | _applicable_configs_continual)\
+    + dict_permutations(configs_pendulum | _applicable_configs_continual_mean)                    
 
 
 def main(args):

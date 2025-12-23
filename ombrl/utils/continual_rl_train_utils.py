@@ -37,6 +37,7 @@ def train(
         log_config: Optional[Dict] = None,
         logs_dir: str = './logs/',
         save_video: bool = False,
+        replay_buffer_mode: str = 'none',
         replay_buffer_size: int = 1_000_000,
         max_steps: int = 1_000_000,
         use_tqdm: bool = True,
@@ -140,19 +141,23 @@ def train(
                                     env.action_space.sample(), **alg_kwargs)
     else:
         raise NotImplementedError()
-    if n_steps_returns < 0:
-        replay_buffer = ReplayBuffer(observation_space=env.observation_space,
-                                     action_space=env.action_space,
-                                     capacity=replay_buffer_size or max_steps)
+    
+    if replay_buffer_mode == 'reset':
+        raise NotImplementedError("Replay buffer reset mode not implemented in this version.")
     else:
-        if 'discount' in alg_kwargs.keys():
-            discount = alg_kwargs['discount']
+        if n_steps_returns < 0:
+            replay_buffer = ReplayBuffer(observation_space=env.observation_space,
+                                        action_space=env.action_space,
+                                        capacity=replay_buffer_size or max_steps)
         else:
-            discount = 0.99
-        replay_buffer = NstepReplayBuffer(observation_space=env.observation_space, action_space=env.action_space,
-                                          discount=discount,
-                                          n_steps=n_steps_returns,
-                                          capacity=replay_buffer_size or max_steps)
+            if 'discount' in alg_kwargs.keys():
+                discount = alg_kwargs['discount']
+            else:
+                discount = 0.99
+            replay_buffer = NstepReplayBuffer(observation_space=env.observation_space, action_space=env.action_space,
+                                            discount=discount,
+                                            n_steps=n_steps_returns,
+                                            capacity=replay_buffer_size or max_steps)
 
     eval_returns = []
     observation, _ = env.reset()

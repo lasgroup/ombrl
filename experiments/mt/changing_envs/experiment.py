@@ -24,6 +24,7 @@ def experiment(
         wandb_log: bool = True,
         logs_dir: str = './logs/',
         save_video: bool = False,
+        replay_buffer_mode: str = 'none',
         replay_buffer_size: int = 1_000_000,
         max_steps: int = 1_000_000,
         use_tqdm: bool = True,
@@ -79,7 +80,15 @@ def experiment(
     reset_period = 500_000
     # do soft resets of the model every few steps
     reset_models = reset_models
-    replay_buffer_size = min(replay_buffer_size, max_steps)
+    if replay_buffer_mode == 'none':
+        replay_buffer_size = max_steps
+    elif replay_buffer_mode == 'window':
+        replay_buffer_size = min(replay_buffer_size, max_steps)
+    elif replay_buffer_mode == 'reset':
+        raise NotImplementedError("Replay buffer reset mode not implemented yet.")
+    else:
+        raise ValueError(f'Unknown replay buffer mode: {replay_buffer_mode}')
+    
     if alg_name == 'maxinfosac' or alg_name == 'maxinfombsac'\
         or alg_name == 'continualmaxinfo':
         alg_kwargs['dyn_ent_lr'] = dyn_ent_lr
@@ -104,6 +113,11 @@ def experiment(
             # set update per step such that critic is updated at least once using real data.
             updates_per_step = critic_real_data_update_period * updates_per_step
         elif alg_name == 'continualmaxinfo':
+
+            if critic_perturb_rate < 0.0:
+                critic_perturb_rate = policy_perturb_rate
+                print(f'WARNING: setting critic_perturb_rate to policy_perturb_rate: {policy_perturb_rate}')
+
             alg_kwargs.update(dict(
                 sample_model=sample_model,
                 critic_real_data_update_period=critic_real_data_update_period,
@@ -140,6 +154,7 @@ def experiment(
         'batch_size': batch_size,
         'seed': seed,
         'save_video': save_video,
+        'replay_buffer_mode': replay_buffer_mode,
         'replay_buffer_size': replay_buffer_size,
         'max_steps': max_steps,
         'training_start': training_start,
@@ -172,8 +187,8 @@ def experiment(
 
     if env_param_mode == 'episodic':
         if env_name == 'Pendulum-v1':
-            pendulum_max_torque_init = 4.0
-            pendulum_max_torque_final = 2.0
+            pendulum_max_torque_init = 5.0
+            pendulum_max_torque_final = 1.0
             pendulum_max_torque_transition_steps = 10
             pendulum_max_torque_transition_begin = 5
             torque_schedule = linear_schedule(
@@ -201,30 +216,40 @@ def experiment(
     elif env_param_mode == 'maximal':
         if env_name == 'Pendulum-v1':
             def scheduler_fn(ep_idx: int):
-                return {"max_torque": float(constant_schedule(4.0)(ep_idx))}
+                return {"max_torque": float(constant_schedule(5.0)(ep_idx))}
             def apply_fn(base_env: gym.Env, params: dict):
                 base_env.max_torque = params["max_torque"]
                 base_env.action_space.low[:] = -params["max_torque"]
                 base_env.action_space.high[:] = params["max_torque"]
-            log_config["pendulum_max_torque"] = 4.0
+            log_config["pendulum_max_torque"] = 5.0
+
+    elif env_param_mode == 'minimal':
+        if env_name == 'Pendulum-v1':
+            def scheduler_fn(ep_idx: int):
+                return {"max_torque": float(constant_schedule(1.0)(ep_idx))}
+            def apply_fn(base_env: gym.Env, params: dict):
+                base_env.max_torque = params["max_torque"]
+                base_env.action_space.low[:] = -params["max_torque"]
+                base_env.action_space.high[:] = params["max_torque"]
+            log_config["pendulum_max_torque"] = 1.0
 
     elif env_param_mode == 'step':
         if env_name == 'Pendulum-v1':
             def scheduler_fn(episode_idx: int):
                 step_change_episode = 10
                 if episode_idx < step_change_episode:
-                    return {"max_torque": 4.0}
+                    return {"max_torque": 5.0}
                 else:
 
-                    return {"max_torque": 2.0}
+                    return {"max_torque": 1.0}
             def apply_fn(base_env: gym.Env, params: dict):
                 base_env.max_torque = params["max_torque"]
                 base_env.action_space.low[:] = -params["max_torque"]
                 base_env.action_space.high[:] = params["max_torque"]
 
             log_config["pendulum_step_change_episode"] = 10
-            log_config["pendulum_max_torque_init"] = 4.0
-            log_config["pendulum_max_torque_final"] = 2.0
+            log_config["pendulum_max_torque_init"] = 5.0
+            log_config["pendulum_max_torque_final"] = 1.0
 
     elif env_param_mode == 'stationary':
         scheduler_fn: Optional[Callable[[int], dict]] = None
@@ -242,6 +267,7 @@ def experiment(
         log_config=log_config,
         logs_dir=logs_dir,
         save_video=save_video,
+        replay_buffer_mode=replay_buffer_mode,
         replay_buffer_size=replay_buffer_size,
         max_steps=max_steps,
         use_tqdm=use_tqdm,
@@ -288,6 +314,7 @@ def main(args):
         wandb_log=bool(args.wandb_log),
         logs_dir=args.logs_dir + f'{args.alg_name}/{exp_hash}',
         save_video=bool(args.save_video),
+        replay_buffer_mode=args.replay_buffer_mode,
         replay_buffer_size=args.replay_buffer_size,
         max_steps=args.max_steps,
         use_tqdm=bool(args.use_tqdm),
@@ -340,7 +367,8 @@ if __name__ == '__main__':
     parser.add_argument('--num_hidden_layers', type=int, default=2)
     parser.add_argument('--wandb_log', type=int, default=1)
     parser.add_argument('--save_video', type=int, default=1)
-    parser.add_argument('--replay_buffer_size', type=int, default=1_000_000)
+    parser.add_argument('--replay_buffer_mode', type=str, default='reset', choices=['none', 'window', 'reset'])
+    parser.add_argument('--replay_buffer_size', type=int, default=2_000)
     parser.add_argument('--max_steps', type=int, default=4_000)
     parser.add_argument('--use_tqdm', type=int, default=1)
     parser.add_argument('--training_start', type=int, default=0)
@@ -360,7 +388,7 @@ if __name__ == '__main__':
     parser.add_argument('--perturb_model', type=int, default=1)
 
     parser.add_argument('--policy_perturb_rate', type=float, default=0.2)
-    parser.add_argument('--critic_perturb_rate', type=float, default=0.2)
+    parser.add_argument('--critic_perturb_rate', type=float, default=-1)
     parser.add_argument('--model_perturb_rate', type=float, default=0.2)
 
     parser.add_argument('--policy_reset_period', type=int, default=999)
@@ -369,7 +397,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_bronet', type=int, default=1)
     parser.add_argument('--pseudo_ct', type=int, default=0)
     parser.add_argument('--predict_diff', type=int, default=1)
-    parser.add_argument('--env_param_mode', type=str, default='stationary', choices=['stationary', 'episodic', 'maximal', 'step'])
+    parser.add_argument('--env_param_mode', type=str, default='episodic', choices=['stationary', 'episodic', 'maximal', 'minimal', 'step'])
     parser.add_argument('--init_state', type=str, default="3.1415,0.0", help="Initial state for environment")
 
     parser.add_argument('--seed', type=int, default=0)
