@@ -13,6 +13,7 @@ from tensorboardX import SummaryWriter
 from maxinforl_jax.agents import MaxInfoSacLearner
 from ombrl.agents import MaxInfoOmbrlLearner, ContinualMaxInfoLearner
 from jaxrl.datasets import ReplayBuffer
+from ombrl.utils.datasets import ResetReplayBuffer
 from maxinforl_jax.datasets import NstepReplayBuffer
 from ombrl.envs.wrappers import InitWrapper, EpisodicParamWrapper, EvalEnvFactory
 from jaxrl.evaluation import evaluate
@@ -143,7 +144,9 @@ def train(
         raise NotImplementedError()
     
     if replay_buffer_mode == 'reset':
-        raise NotImplementedError("Replay buffer reset mode not implemented in this version.")
+            replay_buffer = ResetReplayBuffer(observation_space=env.observation_space,
+                                        action_space=env.action_space,
+                                        capacity=replay_buffer_size or max_steps)
     else:
         if n_steps_returns < 0:
             replay_buffer = ReplayBuffer(observation_space=env.observation_space,
@@ -175,6 +178,9 @@ def train(
             mask = 0.0
         else:
             mask = 1.0
+        if replay_buffer_mode == "reset":
+            if replay_buffer.size == replay_buffer.capacity:
+                replay_buffer.reset()
 
         replay_buffer.insert(observation, action, reward, mask, float(terminate or truncate),
                              next_observation)

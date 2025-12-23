@@ -82,10 +82,8 @@ def experiment(
     reset_models = reset_models
     if replay_buffer_mode == 'none':
         replay_buffer_size = max_steps
-    elif replay_buffer_mode == 'window':
+    elif replay_buffer_mode == 'window' or replay_buffer_mode == 'reset':
         replay_buffer_size = min(replay_buffer_size, max_steps)
-    elif replay_buffer_mode == 'reset':
-        raise NotImplementedError("Replay buffer reset mode not implemented yet.")
     else:
         raise ValueError(f'Unknown replay buffer mode: {replay_buffer_mode}')
     
