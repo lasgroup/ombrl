@@ -210,7 +210,35 @@ def experiment(
                 base_env.action_space.high[:] = params["max_torque"]
         else:
             raise NotImplementedError(f"Episodic param mode not implemented for env {env_name}")
-        
+
+    elif env_param_mode == 'slow':
+        if env_name == 'Pendulum-v1':
+            pendulum_max_torque_init = 5.0
+            pendulum_max_torque_final = 1.0
+            pendulum_max_torque_transition_steps = 25
+            pendulum_max_torque_transition_begin = 5
+            torque_schedule = linear_schedule(
+                init_value=pendulum_max_torque_init,
+                end_value=pendulum_max_torque_final,
+                transition_steps=pendulum_max_torque_transition_steps,
+                transition_begin=pendulum_max_torque_transition_begin # TODO see if warm up is needed
+                )
+                
+            log_config["pendulum_max_torque_init"] = pendulum_max_torque_init
+            log_config["pendulum_max_torque_final"] = pendulum_max_torque_final
+            log_config["pendulum_torque_transition_steps"] = pendulum_max_torque_transition_steps
+            log_config["pendulum_torque_transition_begin"] = pendulum_max_torque_transition_begin
+
+            def scheduler_fn(ep_idx: int):
+                return {"max_torque": float(torque_schedule(ep_idx))}
+
+            def apply_fn(base_env: gym.Env, params: dict):
+                base_env.max_torque = params["max_torque"]
+                base_env.action_space.low[:] = -params["max_torque"]
+                base_env.action_space.high[:] = params["max_torque"]
+        else:
+            raise NotImplementedError(f"Slow param mode not implemented for env {env_name}")
+
     elif env_param_mode == 'maximal':
         if env_name == 'Pendulum-v1':
             def scheduler_fn(ep_idx: int):
@@ -238,7 +266,6 @@ def experiment(
                 if episode_idx < step_change_episode:
                     return {"max_torque": 5.0}
                 else:
-
                     return {"max_torque": 1.0}
             def apply_fn(base_env: gym.Env, params: dict):
                 base_env.max_torque = params["max_torque"]
@@ -246,6 +273,30 @@ def experiment(
                 base_env.action_space.high[:] = params["max_torque"]
 
             log_config["pendulum_step_change_episode"] = 10
+            log_config["pendulum_max_torque_init"] = 5.0
+            log_config["pendulum_max_torque_final"] = 1.0
+
+    elif env_param_mode == 'piecewise':
+        if env_name == 'Pendulum-v1':
+            def scheduler_fn(episode_idx: int):
+                if episode_idx < 5:
+                    val = 5.0
+                elif episode_idx < 10:
+                    val = 4.0
+                elif episode_idx < 15:
+                    val = 3.0
+                elif episode_idx < 20:
+                    val = 2.0
+                else:
+                    val = 1.0
+                return {"max_torque": val}
+
+            def apply_fn(base_env: gym.Env, params: dict):
+                base_env.max_torque = params["max_torque"]
+                base_env.action_space.low[:] = -params["max_torque"]
+                base_env.action_space.high[:] = params["max_torque"]
+
+            log_config["pendulum_step_change_episode"] = 5
             log_config["pendulum_max_torque_init"] = 5.0
             log_config["pendulum_max_torque_final"] = 1.0
 
@@ -365,7 +416,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_hidden_layers', type=int, default=2)
     parser.add_argument('--wandb_log', type=int, default=1)
     parser.add_argument('--save_video', type=int, default=1)
-    parser.add_argument('--replay_buffer_mode', type=str, default='reset', choices=['none', 'window', 'reset'])
+    parser.add_argument('--env_param_mode', type=str, default='episodic', choices=['stationary', 'episodic', 'maximal', 'minimal', 'step', 'slow', 'piecewise'])    
     parser.add_argument('--replay_buffer_size', type=int, default=2_000)
     parser.add_argument('--max_steps', type=int, default=4_000)
     parser.add_argument('--use_tqdm', type=int, default=1)

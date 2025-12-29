@@ -2,7 +2,7 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Dez_23_14_30_Resets_Test_1'
+PROJECT_NAME = 'MT_Dez_29_18_00_Slow_Piecewise_Test_1'
 
 entity = 'kiten'
 _applicable_configs = {
@@ -50,11 +50,11 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'updates_per_step': [20],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['minimal', 'maximal', 'stationary', 'step', 'episodic'],
+                             'env_param_mode': ['piecewise', 'slow'],
 
 
                              # replay_buffer_size
-                             'replay_buffer_mode': ['none', 'window'],
+                             'replay_buffer_mode': ['reset', 'window'],
                              'replay_buffer_size': [2_000], # TODO ablate
 
                               # resets / perturbations
@@ -62,9 +62,9 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'perturb_critic': [1],
                              'perturb_model': [1],
  
-                             'policy_perturb_rate': [0, 0.2, 1.0],
+                             'policy_perturb_rate': [0, 0.2, 0.5, 1.0],
                              'critic_perturb_rate': [-1],
-                             'model_perturb_rate': [0, 0.2, 1.0],
+                             'model_perturb_rate': [0, 0.2, 0.5, 1.0],
 
                              'policy_reset_period': [10], # TODO ablate
                              'critic_reset_period': [10], # TODO ablate
@@ -81,7 +81,7 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'updates_per_step': [20],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['minimal', 'maximal', 'stationary', 'step', 'episodic'],
+                             'env_param_mode': ['piecewise', 'slow'],
 
                               # replay_buffer_size
                              'replay_buffer_mode': ['none'],
@@ -188,7 +188,7 @@ configs_mountaincar = {
 
 configs_pendulum = {
     'env_name': ['Pendulum-v1'],
-    'max_steps': [6_000],
+    'max_steps': [7_000],
     'eval_interval': [200],
     'action_repeat': [1],
     'num_neurons': [256],
