@@ -416,7 +416,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_hidden_layers', type=int, default=2)
     parser.add_argument('--wandb_log', type=int, default=1)
     parser.add_argument('--save_video', type=int, default=1)
-    parser.add_argument('--env_param_mode', type=str, default='episodic', choices=['stationary', 'episodic', 'maximal', 'minimal', 'step', 'slow', 'piecewise'])    
+    parser.add_argument('--replay_buffer_mode', type=str, default='reset', choices=['none', 'window', 'reset'])
     parser.add_argument('--replay_buffer_size', type=int, default=2_000)
     parser.add_argument('--max_steps', type=int, default=4_000)
     parser.add_argument('--use_tqdm', type=int, default=1)
@@ -446,7 +446,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_bronet', type=int, default=1)
     parser.add_argument('--pseudo_ct', type=int, default=0)
     parser.add_argument('--predict_diff', type=int, default=1)
-    parser.add_argument('--env_param_mode', type=str, default='episodic', choices=['stationary', 'episodic', 'maximal', 'minimal', 'step'])
+    parser.add_argument('--env_param_mode', type=str, default='piecewise', choices=['stationary', 'episodic', 'maximal', 'minimal', 'step', 'slow', 'piecewise'])
     parser.add_argument('--init_state', type=str, default="3.1415,0.0", help="Initial state for environment")
 
     parser.add_argument('--seed', type=int, default=0)
