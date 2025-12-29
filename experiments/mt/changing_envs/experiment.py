@@ -1,9 +1,8 @@
 import numpy as np
 import argparse
 from experiments.utils import hash_dict, parse_string
-from typing import Optional, Callable
-import gymnasium as gym
-from optax.schedules import linear_schedule, constant_schedule
+from typing import Optional
+from ombrl.envs.env_utils import get_scheduler_apply_fn
 
 
 def experiment(
@@ -174,7 +173,7 @@ def experiment(
         'pseudo_ct': pseudo_ct,
         'predict_diff': predict_diff,
         'env_param_mode': env_param_mode,
-        'init_state': init_state,
+        'init_state': None if init_state is None else np.asarray(init_state).tolist(),
         'policy_perturb_rate': policy_perturb_rate,
         'critic_perturb_rate': critic_perturb_rate,
         'model_perturb_rate': model_perturb_rate,
@@ -183,126 +182,9 @@ def experiment(
         'model_reset_period': model_reset_period,
     }
 
-    if env_param_mode == 'episodic':
-        if env_name == 'Pendulum-v1':
-            pendulum_max_torque_init = 5.0
-            pendulum_max_torque_final = 1.0
-            pendulum_max_torque_transition_steps = 10
-            pendulum_max_torque_transition_begin = 5
-            torque_schedule = linear_schedule(
-                init_value=pendulum_max_torque_init,
-                end_value=pendulum_max_torque_final,
-                transition_steps=pendulum_max_torque_transition_steps,
-                transition_begin=pendulum_max_torque_transition_begin # TODO see if warm up is needed
-                )
-                
-            log_config["pendulum_max_torque_init"] = pendulum_max_torque_init
-            log_config["pendulum_max_torque_final"] = pendulum_max_torque_final
-            log_config["pendulum_torque_transition_steps"] = pendulum_max_torque_transition_steps
-            log_config["pendulum_torque_transition_begin"] = pendulum_max_torque_transition_begin
+    scheduler_fn, apply_fn, env_log = get_scheduler_apply_fn(env_name=env_name, env_param_mode=env_param_mode)
+    log_config = log_config | env_log
 
-            def scheduler_fn(ep_idx: int):
-                return {"max_torque": float(torque_schedule(ep_idx))}
-
-            def apply_fn(base_env: gym.Env, params: dict):
-                base_env.max_torque = params["max_torque"]
-                base_env.action_space.low[:] = -params["max_torque"]
-                base_env.action_space.high[:] = params["max_torque"]
-        else:
-            raise NotImplementedError(f"Episodic param mode not implemented for env {env_name}")
-
-    elif env_param_mode == 'slow':
-        if env_name == 'Pendulum-v1':
-            pendulum_max_torque_init = 5.0
-            pendulum_max_torque_final = 1.0
-            pendulum_max_torque_transition_steps = 25
-            pendulum_max_torque_transition_begin = 5
-            torque_schedule = linear_schedule(
-                init_value=pendulum_max_torque_init,
-                end_value=pendulum_max_torque_final,
-                transition_steps=pendulum_max_torque_transition_steps,
-                transition_begin=pendulum_max_torque_transition_begin # TODO see if warm up is needed
-                )
-                
-            log_config["pendulum_max_torque_init"] = pendulum_max_torque_init
-            log_config["pendulum_max_torque_final"] = pendulum_max_torque_final
-            log_config["pendulum_torque_transition_steps"] = pendulum_max_torque_transition_steps
-            log_config["pendulum_torque_transition_begin"] = pendulum_max_torque_transition_begin
-
-            def scheduler_fn(ep_idx: int):
-                return {"max_torque": float(torque_schedule(ep_idx))}
-
-            def apply_fn(base_env: gym.Env, params: dict):
-                base_env.max_torque = params["max_torque"]
-                base_env.action_space.low[:] = -params["max_torque"]
-                base_env.action_space.high[:] = params["max_torque"]
-        else:
-            raise NotImplementedError(f"Slow param mode not implemented for env {env_name}")
-
-    elif env_param_mode == 'maximal':
-        if env_name == 'Pendulum-v1':
-            def scheduler_fn(ep_idx: int):
-                return {"max_torque": float(constant_schedule(5.0)(ep_idx))}
-            def apply_fn(base_env: gym.Env, params: dict):
-                base_env.max_torque = params["max_torque"]
-                base_env.action_space.low[:] = -params["max_torque"]
-                base_env.action_space.high[:] = params["max_torque"]
-            log_config["pendulum_max_torque"] = 5.0
-
-    elif env_param_mode == 'minimal':
-        if env_name == 'Pendulum-v1':
-            def scheduler_fn(ep_idx: int):
-                return {"max_torque": float(constant_schedule(1.0)(ep_idx))}
-            def apply_fn(base_env: gym.Env, params: dict):
-                base_env.max_torque = params["max_torque"]
-                base_env.action_space.low[:] = -params["max_torque"]
-                base_env.action_space.high[:] = params["max_torque"]
-            log_config["pendulum_max_torque"] = 1.0
-
-    elif env_param_mode == 'step':
-        if env_name == 'Pendulum-v1':
-            def scheduler_fn(episode_idx: int):
-                step_change_episode = 10
-                if episode_idx < step_change_episode:
-                    return {"max_torque": 5.0}
-                else:
-                    return {"max_torque": 1.0}
-            def apply_fn(base_env: gym.Env, params: dict):
-                base_env.max_torque = params["max_torque"]
-                base_env.action_space.low[:] = -params["max_torque"]
-                base_env.action_space.high[:] = params["max_torque"]
-
-            log_config["pendulum_step_change_episode"] = 10
-            log_config["pendulum_max_torque_init"] = 5.0
-            log_config["pendulum_max_torque_final"] = 1.0
-
-    elif env_param_mode == 'piecewise':
-        if env_name == 'Pendulum-v1':
-            def scheduler_fn(episode_idx: int):
-                if episode_idx < 5:
-                    val = 5.0
-                elif episode_idx < 10:
-                    val = 4.0
-                elif episode_idx < 15:
-                    val = 3.0
-                elif episode_idx < 20:
-                    val = 2.0
-                else:
-                    val = 1.0
-                return {"max_torque": val}
-
-            def apply_fn(base_env: gym.Env, params: dict):
-                base_env.max_torque = params["max_torque"]
-                base_env.action_space.low[:] = -params["max_torque"]
-                base_env.action_space.high[:] = params["max_torque"]
-
-            log_config["pendulum_step_change_episode"] = 5
-            log_config["pendulum_max_torque_init"] = 5.0
-            log_config["pendulum_max_torque_final"] = 1.0
-
-    elif env_param_mode == 'stationary':
-        scheduler_fn: Optional[Callable[[int], dict]] = None
-        apply_fn: Optional[Callable[[gym.Env, dict], None]] = None
 
     train(
         project_name=project_name,
@@ -403,7 +285,7 @@ if __name__ == '__main__':
     parser.add_argument('--project_name', type=str, default='MT_Test')
     parser.add_argument('--entity_name', type=str, default='kiten')
     parser.add_argument('--alg_name', type=str, default='continualmaxinfo')
-    parser.add_argument('--env_name', type=str, default='Pendulum-v1')
+    parser.add_argument('--env_name', type=str, default='MountainCarContinuous-v0')
     # 'Pendulum-v1', 'Walker2d-v4', 'Swimmer-v4', 'Pusher-v4', 'Reacher-v4', 'Humanoid-v4'
     parser.add_argument('--action_cost', type=float, default=0.0)
     parser.add_argument('--action_repeat', type=int, default=1)
