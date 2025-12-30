@@ -1,9 +1,10 @@
 import gymnasium as gym
+import jax.numpy as jnp
 from optax.schedules import linear_schedule, constant_schedule
 from typing import Callable, Optional
 
 
-def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None) -> tuple[
+def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **kwargs) -> tuple[
     Optional[Callable[[int], dict]], Optional[Callable[[gym.Env, dict], None]], dict
     ]:
     if env_param_mode == 'stationary':
@@ -104,6 +105,25 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None) -> 
             env_logs["pendulum_max_torque_init"] = 5.0
             env_logs["pendulum_max_torque_final"] = 1.0
 
+        elif env_param_mode == 'exponential':
+            decay_rate = kwargs.get('parameter_decay', 0.0)
+            max_torque = 5.0
+            min_torque = 1.0
+            transition_begin = 5
+
+            def scheduler_fn(ep_idx: int):
+                t = max(0, ep_idx - transition_begin)
+                val = jnp.exp(-decay_rate * t) * (max_torque - min_torque) + min_torque
+                
+                return {"max_torque": float(val)}
+
+            env_logs.update({
+                "pendulum_max_torque_init": max_torque,
+                "pendulum_max_torque_final": min_torque,
+                "pendulum_torque_decay_rate": decay_rate,
+                "transition_begin": transition_begin
+            })
+
         else:
             raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
                 
@@ -114,7 +134,7 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None) -> 
         env_logs = {}
         if env_param_mode == 'episodic':
             mountaincar_power_init = 0.004
-            mountaincar_power_final = 0.0004
+            mountaincar_power_final = 0.001
             mountaincar_power_transition_steps = 10
             power_schedule = linear_schedule(
                 init_value=mountaincar_power_init,
@@ -136,10 +156,10 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None) -> 
             env_logs["mountaincar_power"] = 0.004
 
         elif env_param_mode == 'minimal':
-            torque_schedule = constant_schedule(0.0004)
-            def power_schedule(ep_idx: int):
+            power_schedule = constant_schedule(0.001)
+            def scheduler_fn(ep_idx: int):
                 return {"power": float(power_schedule(ep_idx))}
-            env_logs["mountaincar_power"] = 0.0004
+            env_logs["mountaincar_power"] = 0.001
 
         else:
             raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")        
@@ -149,31 +169,33 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None) -> 
     return scheduler_fn, apply_fn, env_logs
     
 def main():
-    env_name = "MountainCarContinuous-v0"
-    env_param_mode = "episodic"
+    import matplotlib.pyplot as plt
+    env_name = "Pendulum-v1"
+    env_param_mode = "exponential"
+    num_episodes = 50
+    alphas = [0.0, 0.05, 0.1, 0.2, 0.5]  # Testing a range of decay speeds
 
-    scheduler_fn, apply_fn, env_logs = get_scheduler_apply_fn(
-        env_name=env_name,
-        env_param_mode=env_param_mode,
-    )
+    plt.figure(figsize=(10, 6))
 
-    print("Env logs:", env_logs)
-
-    env = gym.make(env_name)
-    base_env = env.unwrapped
-
-    print("\nTesting MountainCar power schedule:")
-    for ep in range(15):
-        params = scheduler_fn(ep)
-        apply_fn(base_env, params)
-
-        print(
-            f"Episode {ep:02d} | "
-            f"scheduled power = {params['power']:.6f} | "
-            f"env.power = {base_env.power:.6f}"
+    for alpha in alphas:
+        scheduler_fn, _, _ = get_scheduler_apply_fn(
+            env_name=env_name,
+            env_param_mode=env_param_mode,
+            parameter_decay=alpha
         )
 
-    env.close()
+        episodes = range(num_episodes)
+        torques = [scheduler_fn(ep)["max_torque"] for ep in episodes]
+        
+        plt.plot([ep_idx*200 for ep_idx in episodes], torques, label=f'α = {alpha}')
+
+    plt.axhline(y=1.0, color='r', linestyle='--', alpha=0.5, label='Min Torque (1.0)')
+    plt.title(f"Exponential Decay Visualization (Pendulum-v1)", fontsize=14)
+    plt.xlabel("Environment steps", fontsize=12)
+    plt.ylabel("Max Torque Value", fontsize=12)
+    plt.legend()
+    plt.grid(True, linestyle=':', alpha=0.6)
+    plt.show()
 
 
 if __name__ == "__main__":

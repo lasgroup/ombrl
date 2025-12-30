@@ -2,7 +2,7 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Dez_29_18_00_Slow_Piecewise_Test_1'
+PROJECT_NAME = 'MT_Dez_30_12_15_Exponential_Test_1'
 
 entity = 'kiten'
 _applicable_configs = {
@@ -15,6 +15,7 @@ _applicable_configs = {
     'pseudo_ct': [0],
     'predict_diff': [1],
     'init_state': ["3.1415,0.0"],
+    'parameter_decay': [0.0, 0.05, 0.1, 0.2, 0.5],
     'reset_models': [1],
     'save_video': [0],
     'eval_episodes': [5],
@@ -50,8 +51,7 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'updates_per_step': [20],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['piecewise', 'slow'],
-
+                             'env_param_mode': ['exponential'],
 
                              # replay_buffer_size
                              'replay_buffer_mode': ['reset', 'window'],
@@ -81,11 +81,11 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'updates_per_step': [20],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['piecewise', 'slow'],
+                             'env_param_mode': ['exponential'],
 
                               # replay_buffer_size
                              'replay_buffer_mode': ['none'],
-                             'replay_buffer_size': [6_000],
+                             'replay_buffer_size': [10_000],
 
                              # resets / perturbations
                              'perturb_policy': [0],
@@ -188,7 +188,7 @@ configs_mountaincar = {
 
 configs_pendulum = {
     'env_name': ['Pendulum-v1'],
-    'max_steps': [7_000],
+    'max_steps': [10_000],
     'eval_interval': [200],
     'action_repeat': [1],
     'num_neurons': [256],
