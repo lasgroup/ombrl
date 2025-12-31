@@ -2,182 +2,22 @@ import os
 import random
 import time
 
-import gymnasium.wrappers
 import numpy as np
 import tqdm
-import jax.numpy as jnp
-from typing import Optional, Dict, Callable, Tuple, List
+from typing import Optional, Dict, Callable, List
 from tensorboardX import SummaryWriter
 
-from jaxrl.agents import DDPGLearner, REDQLearner, SACLearner, DrQLearner
-from ombrl.agents import CombrlExplorerLearner, SombrlExplorerLearner
+from ombrl.agents import COMBRLExplorerLearner, SOMBRLExplorerLearner
 from jaxrl.datasets import ReplayBuffer
 from maxinforl_jax.datasets import NstepReplayBuffer
 from ombrl.utils.evaluation import evaluate
 from ombrl.utils.multiple_reward_wrapper import RewardFunction
 
 from ombrl.utils.wrappers import PendulumInitWrapper
-from jaxrl.utils import make_env as jaxrl_make_env
+from ombrl.utils.env_utils import make_metaworld_env, make_humanoid_bench_env
+from jaxrl.utils import make_env
 import wandb
-import gymnasium as gym
-from gymnasium.wrappers import RescaleAction
-from gymnasium.wrappers.pixel_observation import PixelObservationWrapper # DEPRECATED
-
-from jaxrl import wrappers
-
-
-def make_humanoid_bench_env(
-        env_name: str,
-        seed: int,
-        save_folder: Optional[str] = None,
-        add_episode_monitor: bool = True,
-        action_repeat: int = 1,
-        action_cost: float = 0.0,
-        frame_stack: int = 1,
-        from_pixels: bool = False,
-        pixels_only: bool = True,
-        image_size: int = 84,
-        sticky: bool = False,
-        gray_scale: bool = False,
-        flatten: bool = True,
-        recording_image_size: Optional[int] = None,
-        episode_trigger: Callable[[int], bool] = None,
-):
-    import humanoid_bench
-    downscale_image = False
-    if from_pixels:
-        camera_id = 0
-        if recording_image_size is not None and save_folder is not None:
-            size = recording_image_size
-            downscale_image = True
-        else:
-            size = image_size
-        render_kwargs = {
-            'height': size,
-            'width': size,
-            'camera_id': camera_id,
-            'render_mode': 'rgb_array'
-        }
-    else:
-        if recording_image_size is not None and save_folder:
-            render_kwargs = {
-                'width': recording_image_size,
-                'height': recording_image_size,
-                'render_mode': 'rgb_array'
-            }
-        else:
-            render_kwargs = {'render_mode': 'rgb_array'}
-    env = gym.make(env_name, **render_kwargs)
-
-    if flatten and isinstance(env.observation_space, gym.spaces.Dict):
-        env = gym.wrappers.FlattenObservation(env)
-
-    if add_episode_monitor:
-        env = wrappers.EpisodeMonitor(env)
-
-    if action_repeat > 1:
-        env = wrappers.RepeatAction(env, action_repeat)
-
-    env = wrappers.ActionCost(env, action_cost=action_cost)
-    env = RescaleAction(env, -1.0, 1.0)
-
-    if save_folder is not None:
-        env = gymnasium.wrappers.RecordVideo(env, save_folder, episode_trigger=episode_trigger)
-
-    if from_pixels:
-        raise NotImplementedError("Pixel observation wrapper is deprecated") # env = PixelObservationWrapper(env,
-        # pixels_only=pixels_only)
-        env = wrappers.TakeKey(env, take_key='pixels')
-        if downscale_image:
-            env = gymnasium.wrappers.ResizeObservation(env, shape=image_size)
-        if gray_scale:
-            env = wrappers.RGB2Gray(env)
-    else:
-        env = wrappers.SinglePrecision(env)
-
-    if frame_stack > 1:
-        env = wrappers.FrameStack(env, num_stack=frame_stack)
-
-    if sticky:
-        env = wrappers.StickyActionEnv(env)
-
-    env.reset(seed=seed)
-    env.action_space.seed(seed)
-    env.observation_space.seed(seed)
-
-    return env
-
-
-def make_metaworld_env(
-        env_name: str,
-        seed: int,
-        save_folder: Optional[str] = None,
-        add_episode_monitor: bool = True,
-        action_repeat: int = 1,
-        action_cost: float = 0.0,
-        frame_stack: int = 1,
-        from_pixels: bool = False,
-        pixels_only: bool = True,
-        image_size: int = 84,
-        sticky: bool = False,
-        gray_scale: bool = False,
-        flatten: bool = True,
-        time_limit: int = 200,
-        recording_image_size: int = 1024,
-):
-    from metaworld.envs import (ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE)
-    assert not from_pixels, "currently only works for state based tasks."
-    render_kwargs = {}
-    constructor = ALL_V2_ENVIRONMENTS_GOAL_OBSERVABLE[env_name]
-    env = constructor(seed=seed)
-    env = gymnasium.wrappers.TimeLimit(env, max_episode_steps=time_limit)
-
-    if flatten and isinstance(env.observation_space, gym.spaces.Dict):
-        env = gym.wrappers.FlattenObservation(env)
-
-    if add_episode_monitor:
-        env = wrappers.EpisodeMonitor(env)
-
-    if action_repeat > 1:
-        env = wrappers.RepeatAction(env, action_repeat)
-
-    env = wrappers.ActionCost(env, action_cost=action_cost)
-    env = RescaleAction(env, -1.0, 1.0)
-
-    if save_folder is not None:
-        env = gym.wrappers.RecordVideo(env, save_folder)
-
-    if from_pixels:
-        raise NotImplementedError("Pixel observation wrapper is deprecated") # env = PixelObservationWrapper(env,
-        #                               pixels_only=pixels_only)
-        env = wrappers.TakeKey(env, take_key='pixels')
-        if gray_scale:
-            env = wrappers.RGB2Gray(env)
-    else:
-        env = wrappers.SinglePrecision(env)
-
-    if frame_stack > 1:
-        env = wrappers.FrameStack(env, num_stack=frame_stack)
-
-    if sticky:
-        env = wrappers.StickyActionEnv(env)
-
-    env.reset(seed=seed)
-    env.action_space.seed(seed)
-    env.observation_space.seed(seed)
-
-    return env
-
-
-def make_env(*args, **kwargs
-             ) -> gym.Env:
-    env_name = kwargs.get('env_name', None)
-    
-    env = jaxrl_make_env(*args, **kwargs)
-    if env_name=='MountainCarContinuous-v0':
-        # HACK for MountainCar
-        env.unwrapped.min_position=-1.75
-    return env
+from jaxrl.evaluation import evaluate as jaxrl_evaluate
 
 
 def train(
@@ -185,10 +25,10 @@ def train(
         entity_name: str,
         alg_name: str,
         env_name: str,
-        reward_list: List[RewardFunction],
         alg_kwargs: Dict,
         env_kwargs: Dict,
         seed: int = 0,
+        reward_list: List[RewardFunction] | RewardFunction | None = None,
         wandb_log: bool = True,
         log_config: Optional[Dict] = None,
         logs_dir: str = './logs',
@@ -237,14 +77,14 @@ def train(
                        save_folder=video_train_folder,
                        recording_image_size=recording_image_size,
                        **env_kwargs)
-        eval_env = jaxrl_make_env(env_name=env_name, seed=seed + 42,
+        eval_env = make_env(env_name=env_name, seed=seed + 42,
                             save_folder=video_eval_folder,
                             episode_trigger=eval_episode_trigger,
                             recording_image_size=recording_image_size,
                             **env_kwargs)
         if env_name=='MountainCarContinuous-v0':
             # HACK for MountainCar
-            eval_env.unwrapped.min_position=-1.75
+            eval_env.unwrapped.min_position = -1.75
         if env_name=='Pendulum-v1':
             env = PendulumInitWrapper(env, init_angle=np.pi, init_vel=0.0)
             eval_env = PendulumInitWrapper(eval_env, init_angle=np.pi, init_vel=0.0)
@@ -261,6 +101,7 @@ def train(
         wandb.init(
             dir=logs_dir,
             project=project_name,
+            entity=entity_name,
             sync_tensorboard=True,
             config=log_config,
             name=run_name,
@@ -271,15 +112,19 @@ def train(
         os.path.join(logs_dir, run_name))
 
     if alg_name == 'combrl':
-        agent = CombrlExplorerLearner(seed,
+        agent = COMBRLExplorerLearner(seed,
                            env.observation_space.sample(),
                            env.action_space.sample(),
                            reward_list, **alg_kwargs)
     elif alg_name == 'sombrl':
-        agent = SombrlExplorerLearner(seed,
-                           env.observation_space.sample(),
-                           env.action_space.sample(),
-                           reward_list, **alg_kwargs)
+        if reward_list is not None:
+            assert isinstance(reward_list, RewardFunction), "Only one reward function can be passed to SOMBRL"
+        agent = SOMBRLExplorerLearner(
+            seed,
+            env.observation_space.sample(),
+            env.action_space.sample(),
+            reward_model=reward_list,
+            **alg_kwargs)
     else:
         raise NotImplementedError()
     if n_steps_returns < 0:
@@ -347,16 +192,28 @@ def train(
                 summary_writer.flush()
 
         if i % eval_interval == 0:
-            eval_info = evaluate(agent, eval_env, eval_episodes, reward_list)
-
-            for reward_index, eval_stats in eval_info.items():
+            if reward_list is None:
+                eval_stats = jaxrl_evaluate(agent, eval_env, eval_episodes)
                 for k, v in eval_stats.items():
-                    summary_writer.add_scalar(f'evaluation/task_{reward_index}_average_{k}s', v,
-                                            info['total']['timesteps'])
+                    summary_writer.add_scalar(f'evaluation/average_{k}s', v,
+                                              info['total']['timesteps'])
                 summary_writer.flush()
 
                 eval_returns.append(
-                    (info['total']['timesteps'], eval_stats['eval_return']))
+                    (info['total']['timesteps'], eval_stats['return']))
                 np.savetxt(os.path.join(logs_dir, f'{seed}.txt'),
-                        eval_returns,
-                        fmt=['%d', '%.1f'])
+                           eval_returns,
+                           fmt=['%d', '%.1f'])
+            else:
+                eval_info = evaluate(agent, eval_env, eval_episodes, reward_list)
+                for reward_index, eval_stats in eval_info.items():
+                    for k, v in eval_stats.items():
+                        summary_writer.add_scalar(f'evaluation/task_{reward_index}_average_{k}s', v,
+                                                info['total']['timesteps'])
+                    summary_writer.flush()
+
+                    eval_returns.append(
+                        (info['total']['timesteps'], eval_stats['eval_return']))
+                    np.savetxt(os.path.join(logs_dir, f'{seed}.txt'),
+                            eval_returns,
+                            fmt=['%d', '%.1f'])

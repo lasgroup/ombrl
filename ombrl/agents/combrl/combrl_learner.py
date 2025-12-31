@@ -182,7 +182,7 @@ def _update_jit(
     }
 
 
-class CombrlExplorerLearner(object):
+class COMBRLExplorerLearner(object):
 
     def __init__(self,
                  seed: int,
@@ -408,7 +408,6 @@ class CombrlExplorerLearner(object):
             self.int_rew_weight_schedule = optax.constant_schedule(
                 value=int_rew_weight_start
             )
-
 
     def sample_actions(self,
                        observations: np.ndarray,
