@@ -17,6 +17,7 @@ class RewardFunction:
     def _get_reward(self, observation, action, next_observation, reward):
         raise NotImplementedError(f'Reward function not set for reward_index: {self.reward_index}')
     
+RewardLike = Callable | RewardFunction
 
 class DmRewardFunction(RewardFunction):    
     def __call__(self, observation, action, next_observation, reward, env: DMCEnv):
