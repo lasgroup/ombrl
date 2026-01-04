@@ -182,7 +182,7 @@ def _update_jit(
     }
 
 
-class CombrlExplorerLearner(object):
+class COMBRLExplorerLearner(object):
 
     def __init__(self,
                  seed: int,
