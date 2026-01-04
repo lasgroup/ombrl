@@ -564,9 +564,10 @@ class SOMBRLExplorerLearner(object):
     def update(self, batch: Batch) -> InfoDict:
         if self._config.reset_models:
             rng, self.rng = jax.random.split(self.rng)
-            new_actor, new_critic, new_target_critic, new_ens_state = self.perturbation_module.perturb(
+            new_actor, new_critic, new_target_actor, new_target_critic, new_ens_state = self.perturbation_module.perturb(
                 actor=self.actor,
                 critic=self.critic,
+                target_actor=self.actor,
                 target_critic=self.target_critic,
                 ens_state=self.ens_state,
                 observation=batch.observations,
@@ -580,9 +581,10 @@ class SOMBRLExplorerLearner(object):
             self.ens_state = new_ens_state
             if self.train_unsupervised_agent:
                 rng, self.rng = jax.random.split(self.rng)
-                new_actor, new_critic, new_target_critic, _ = self.perturbation_module.perturb(
+                new_actor, new_critic, new_target_actor, new_target_critic, _ = self.perturbation_module.perturb(
                     actor=self.expl_actor,
                     critic=self.expl_critic,
+                    target_actor=self.expl_actor,
                     target_critic=self.expl_target_critic,
                     ens_state=self.ens_state,
                     observation=batch.observations,
