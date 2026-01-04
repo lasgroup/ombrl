@@ -58,8 +58,8 @@ class SOMBRLConfig:
     int_rew_weight_start: float = 1.0
     int_rew_weight_end: float = 0.0
     int_rew_weight_decrease_steps: int = -1
-    num_imagined_steps: int = 1
-    actor_critic_updates_per_model_update: int = -1
+    num_imagined_steps: int | optax.Schedule = 1
+    actor_critic_updates_per_model_update: int | optax.Schedule = -1
     reset_period: int = 2_500_000
     reset_models: bool = False
     perturb_rate: float = 0.2
@@ -89,14 +89,40 @@ def jax_symexp(x):
     return jnp.sign(x) * (jnp.exp(jnp.abs(x)) - 1.0)
 
 
-@functools.partial(jax.jit,
-                   static_argnames=('ens',
-                                    'predict_rewards',
-                                    'predict_diff',
-                                    'sample_model',
-                                    'num_imagined_steps',
-                                    'reward_model',
-                                    ))
+@jax.jit
+def get_action(observation: jnp.ndarray, actor: Model, rng: PRNGKey):
+    dist = actor(observation)
+    act = dist.sample(seed=rng)
+    return act
+
+
+@jax.jit
+def concatenate_batches(bs: ModelBasedBatch, concatenated_bs: ModelBasedBatch):
+    # Add a new axis and concatenate along that
+    return jax.tree_util.tree_map(lambda x, y: jnp.vstack([x[jnp.newaxis], y]), bs, concatenated_bs)
+
+
+@jax.jit
+def mask_batch(old_batch: ModelBasedBatch, new_batch: ModelBasedBatch):
+    # Use previous batch if mask == 0.0 else take new batch.
+    mask = old_batch.masks
+    obs = (1 - mask[..., jnp.newaxis]) * old_batch.observations + mask[..., jnp.newaxis] * new_batch.observations
+    actions = (1 - mask[..., jnp.newaxis]) * old_batch.actions + mask[..., jnp.newaxis] * new_batch.actions
+    rewards = (1 - mask) * old_batch.rewards + mask * new_batch.rewards
+    int_rews = (1 - mask) * old_batch.intrinsic_rewards + mask * new_batch.intrinsic_rewards
+    new_masks = (1 - mask) * old_batch.masks + mask * new_batch.masks
+    next_obs = (1 - mask[..., jnp.newaxis]) * old_batch.next_observations \
+               + mask[..., jnp.newaxis] * new_batch.next_observations
+    return ModelBasedBatch(
+        observations=obs,
+        actions=actions,
+        rewards=rewards,
+        intrinsic_rewards=int_rews,
+        masks=new_masks,
+        next_observations=next_obs,
+    )
+
+
 def rollout_learned_model(
         batch: ModelBasedBatch,
         ens: DeterministicEnsemble,
@@ -111,41 +137,13 @@ def rollout_learned_model(
 ):
     key, model_sample_key = jax.random.split(key)
 
-    def get_next_action(bs: ModelBasedBatch, rng: PRNGKey) -> jnp.ndarray:
-        _, next_actions = policies.sample_actions(rng, actor.apply_fn,
-                                                  actor.params, bs.next_observations)
-        return next_actions
-
-    def concatenate_batches(bs: ModelBasedBatch, concatenated_bs: ModelBasedBatch):
-        # Add a new axis and concatenate along that
-        return jax.tree_util.tree_map(lambda x, y: jnp.vstack([x[jnp.newaxis], y]), bs, concatenated_bs)
-
     imagined_batch = batch
     # expand dims
     full_batch = jax.tree_util.tree_map(lambda x: x[jnp.newaxis], batch)
 
-    def mask_batch(old_batch: ModelBasedBatch, new_batch: ModelBasedBatch):
-        # Use previous batch if mask == 0.0 else take new batch.
-        mask = old_batch.masks
-        obs = (1 - mask[..., jnp.newaxis]) * old_batch.observations + mask[..., jnp.newaxis] * new_batch.observations
-        actions = (1 - mask[..., jnp.newaxis]) * old_batch.actions + mask[..., jnp.newaxis] * new_batch.actions
-        rewards = (1 - mask) * old_batch.rewards + mask * new_batch.rewards
-        int_rews = (1 - mask) * old_batch.intrinsic_rewards + mask * new_batch.intrinsic_rewards
-        new_masks = (1 - mask) * old_batch.masks + mask * new_batch.masks
-        next_obs = (1 - mask[..., jnp.newaxis]) * old_batch.next_observations \
-                   + mask[..., jnp.newaxis] * new_batch.next_observations
-        return ModelBasedBatch(
-            observations=obs,
-            actions=actions,
-            rewards=rewards,
-            intrinsic_rewards=int_rews,
-            masks=new_masks,
-            next_observations=next_obs,
-        )
-
     for step in range(num_imagined_steps):
         key, actor_rng, model_sample_key = jax.random.split(key, 3)
-        next_actions = get_next_action(imagined_batch, actor_rng)
+        next_actions = get_action(imagined_batch.next_observations, actor, actor_rng)
         # Slide batch by a window of 1
         new_batch = imagined_batch._replace(
             observations=batch.next_observations,
@@ -169,6 +167,13 @@ def rollout_learned_model(
     return full_batch
 
 
+@functools.partial(jax.jit,
+                   static_argnames=('ens',
+                                    'predict_rewards',
+                                    'predict_diff',
+                                    'sample_model',
+                                    'reward_model',
+                                    ))
 def get_imagined_batch(
         batch: ModelBasedBatch,
         ens: DeterministicEnsemble,
@@ -331,11 +336,15 @@ class SOMBRLExplorerLearner(object):
             self.target_entropy = -self._action_dim
         else:
             self.target_entropy = self._config.target_entropy
-
-        if self._config.actor_critic_updates_per_model_update > 0:
-            self.actor_critic_updates_per_model_update = self._config.actor_critic_updates_per_model_update
+        if isinstance(self._config.num_imagined_steps, int):
+            self._num_imagined_steps = optax.constant_schedule(self._config.num_imagined_steps)
         else:
-            self.actor_critic_updates_per_model_update = self._config.num_imagined_steps + 1
+            self._num_imagined_steps = self._config.num_imagined_steps
+        if isinstance(self._config.actor_critic_updates_per_model_update, int):
+            self._actor_critic_updates_per_model_update = optax.constant_schedule(
+                self._config.actor_critic_updates_per_model_update)
+        else:
+            self._actor_critic_updates_per_model_update = self._config.actor_critic_updates_per_model_update
 
         rng = jax.random.PRNGKey(seed)
         actor_critic_init_key, rng = jax.random.split(rng)
@@ -480,6 +489,19 @@ class SOMBRLExplorerLearner(object):
     def train_unsupervised_agent(self):
         return self._config.expl_agent_update_period > 0
 
+    def get_num_imagined_steps_and_update_frequency(self, steps: int) -> Tuple[int, int]:
+        assert isinstance(self._num_imagined_steps, Callable)
+        num_imagined_steps = self._num_imagined_steps(steps)
+        assert isinstance(num_imagined_steps, int)
+
+        assert isinstance(self._actor_critic_updates_per_model_update, Callable)
+        actor_critic_updates_per_model_update = self._actor_critic_updates_per_model_update(steps)
+        assert isinstance(actor_critic_updates_per_model_update, int)
+
+        if actor_critic_updates_per_model_update < 1:
+            actor_critic_updates_per_model_update = num_imagined_steps + 1
+        return num_imagined_steps, actor_critic_updates_per_model_update
+
     def sample_actions(self,
                        observations: np.ndarray,
                        temperature: float = 1.0) -> np.ndarray:
@@ -597,11 +619,11 @@ class SOMBRLExplorerLearner(object):
                 self.expl_target_critic = new_target_critic
         self.steps += 1
         new_ens_state, ens_info, intrinsic_rewards = update_ensemble(batch=batch,
-                                                                    ens=self.ens,
-                                                                    ens_state=self.ens_state,
-                                                                    predict_diff=self._config.predict_diff,
-                                                                    predict_rewards=self._config.predict_reward,
-                                                                    )
+                                                                     ens=self.ens,
+                                                                     ens_state=self.ens_state,
+                                                                     predict_diff=self._config.predict_diff,
+                                                                     predict_rewards=self._config.predict_reward,
+                                                                     )
         self.ens_state = new_ens_state
         # Add intrinsic reward to the batch
         model_batch = ModelBasedBatch(
@@ -613,6 +635,8 @@ class SOMBRLExplorerLearner(object):
             masks=batch.masks,
         )
         rollout_key, self.rng = jax.random.split(self.rng)
+        num_imagined_steps, \
+            actor_critic_updates_per_model_update = self.get_num_imagined_steps_and_update_frequency(self.steps)
         # TODO: Unclear which actor to use to generated imagined rollouts.
         if self.steps <= self._config.explore_until and self.train_unsupervised_agent:
             actor = self.expl_actor
@@ -626,17 +650,17 @@ class SOMBRLExplorerLearner(object):
                                            predict_diff=self._config.predict_diff,
                                            sample_model=self._config.sample_model,
                                            key=rollout_key,
-                                           num_imagined_steps=self._config.num_imagined_steps,
+                                           num_imagined_steps=num_imagined_steps,
                                            reward_model=self._config.reward_model,
                                            )  # [Num imagined steps + 1, B, Z]
         info = ens_info
 
         sample_key, self.rng = jax.random.split(self.rng)
-        desired_sample_shape = (self.actor_critic_updates_per_model_update, )
+        desired_sample_shape = (actor_critic_updates_per_model_update,)
         sample_indices = jax.random.randint(sample_key, desired_sample_shape,
-                                            0, self._config.num_imagined_steps + 1)
+                                            0, num_imagined_steps + 1)
         summarized_info = collections.defaultdict(list)
-        for i in range(self.actor_critic_updates_per_model_update):
+        for i in range(actor_critic_updates_per_model_update):
             index = sample_indices[i]
             # extract the batch from imagined batch
             current_batch = jax.tree_util.tree_map(lambda x: x[index], full_batch)
