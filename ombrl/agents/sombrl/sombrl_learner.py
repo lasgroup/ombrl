@@ -491,12 +491,10 @@ class SOMBRLExplorerLearner(object):
 
     def get_num_imagined_steps_and_update_frequency(self, steps: int) -> Tuple[int, int]:
         assert isinstance(self._num_imagined_steps, Callable)
-        num_imagined_steps = self._num_imagined_steps(steps)
-        assert isinstance(num_imagined_steps, int)
+        num_imagined_steps = int(self._num_imagined_steps(steps))
 
         assert isinstance(self._actor_critic_updates_per_model_update, Callable)
-        actor_critic_updates_per_model_update = self._actor_critic_updates_per_model_update(steps)
-        assert isinstance(actor_critic_updates_per_model_update, int)
+        actor_critic_updates_per_model_update = int(self._actor_critic_updates_per_model_update(steps))
 
         if actor_critic_updates_per_model_update < 1:
             actor_critic_updates_per_model_update = num_imagined_steps + 1
