@@ -11,7 +11,7 @@ from ombrl.agents import COMBRLExplorerLearner, SOMBRLExplorerLearner
 from jaxrl.datasets import ReplayBuffer
 from maxinforl_jax.datasets import NstepReplayBuffer
 from ombrl.utils.evaluation import evaluate
-from ombrl.utils.multiple_reward_wrapper import RewardFunction
+from ombrl.utils.multiple_reward_wrapper import RewardLike
 
 from ombrl.utils.wrappers import PendulumInitWrapper
 from ombrl.utils.env_utils import make_metaworld_env, make_humanoid_bench_env
@@ -28,7 +28,7 @@ def train(
         alg_kwargs: Dict,
         env_kwargs: Dict,
         seed: int = 0,
-        reward_list: List[RewardFunction] | RewardFunction | None = None,
+        reward_list: Optional[List[RewardLike] | RewardLike] = None,
         wandb_log: bool = True,
         log_config: Optional[Dict] = None,
         logs_dir: str = './logs',
@@ -118,7 +118,7 @@ def train(
                            reward_list, **alg_kwargs)
     elif alg_name == 'sombrl':
         if reward_list is not None:
-            assert isinstance(reward_list, RewardFunction), "Only one reward function can be passed to SOMBRL"
+            assert not isinstance(reward_list, List), "Only one reward function can be passed to SOMBRL"
         agent = SOMBRLExplorerLearner(
             seed,
             env.observation_space.sample(),
