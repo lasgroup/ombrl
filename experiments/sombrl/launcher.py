@@ -2,7 +2,7 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.sombrl import experiment as exp
 import argparse
 
-PROJECT_NAME = 'SOMBRL_3_Jan2026'
+PROJECT_NAME = 'SOMBRL_4_Jan2026'
 
 entity = 'sukhijab'
 _applicable_configs = {
@@ -18,21 +18,34 @@ _applicable_configs = {
     'perturb_policy': [0, 1],
     'perturb_model': [0],
     'reset_models': [1],
-    'updates_per_step': [1, 5],
-    'int_rew_weight_start': [2.0, 1.0, 0.0],
-    'int_rew_weight_decrease_steps': [250_000],
+    'updates_per_step': [1],
+    'int_rew_weight_start': [1.0, 0.0],
     'alg_name': ['sombrl'],
-    'env_name': ['quadruped-run', 'cartpole-swingup_sparse'],
     'action_repeat': [2],
     'num_neurons': [512],
     'num_hidden_layers': [2],
-    'max_steps': [2_500_000],
-    'num_imagined_steps': [1, 2, 5],
 
 }
 
+cartpole_config = {
+    'env_name': ['cartpole-swingup_sparse'],
+    'max_steps': [500_000],
+    'num_imagined_steps_end': [5],
+    'steps_to_imagined_steps_end': [10_000],
+    'int_rew_weight_decrease_steps': [100_000],
+}
 
-all_flags_combinations = dict_permutations(_applicable_configs)
+quadruped_config = {
+    'env_name': ['quadruped-run'],
+    'max_steps': [2_500_000],
+    'num_imagined_steps_end': [4, 5],
+    'steps_to_imagined_steps_end': [100_000],
+    'int_rew_weight_decrease_steps': [250_000],
+}
+
+
+all_flags_combinations = dict_permutations(_applicable_configs | cartpole_config) \
+                         + dict_permutations(_applicable_configs | quadruped_config)
 
 
 def main(args):

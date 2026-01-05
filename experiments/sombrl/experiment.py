@@ -36,7 +36,8 @@ def experiment(
         actor_critic_updates_per_model_update: int = -1,
         policy_update_period: int = 1,
         target_update_period: int = 1,
-        num_imagined_steps: int = 5,
+        num_imagined_steps_end: int = 5,
+        steps_to_imagined_steps_end: int = 10_000,
         int_rew_weight_start: float = 0.0,
         int_rew_weight_end: float = 0.0,
         int_rew_weight_decrease_steps: int = -1,
@@ -45,6 +46,7 @@ def experiment(
         reset_period: int = 500_000,
 ):
     from ombrl.utils.train_utils import train
+    import optax
 
     env_kwargs = {'action_cost': action_cost,
                   'action_repeat': action_repeat,
@@ -81,7 +83,10 @@ def experiment(
     alg_kwargs['actor_critic_updates_per_model_update'] = actor_critic_updates_per_model_update
     alg_kwargs['policy_update_period'] = policy_update_period
     alg_kwargs['target_update_period'] = target_update_period
-    alg_kwargs['num_imagined_steps'] = num_imagined_steps
+    alg_kwargs['num_imagined_steps'] = optax.piecewise_constant_schedule(
+        init_value=1, boundaries_and_scales={steps_to_imagined_steps_end: num_imagined_steps_end}
+
+    )
     alg_kwargs['int_rew_weight_start'] = int_rew_weight_start
     alg_kwargs['int_rew_weight_end'] = int_rew_weight_end
     alg_kwargs['int_rew_weight_decrease_steps'] = int_rew_weight_decrease_steps
@@ -106,7 +111,8 @@ def experiment(
         'perturb_model': perturb_model,
         'predict_diff': predict_diff,
         'policy_update_period': policy_update_period,
-        'num_imagined_steps': num_imagined_steps,
+        'num_imagined_steps_end': num_imagined_steps_end,
+        'steps_to_imagined_steps_end': steps_to_imagined_steps_end,
         'int_rew_weight_start': int_rew_weight_start,
         'int_rew_weight_end': int_rew_weight_end,
         'int_rew_weight_decrease_steps': int_rew_weight_decrease_steps,
@@ -180,7 +186,8 @@ def main(args):
         perturb_model=bool(args.perturb_model),
         policy_update_period=args.policy_update_period,
         target_update_period=args.target_update_period,
-        num_imagined_steps=args.num_imagined_steps,
+        num_imagined_steps_end=args.num_imagined_steps_end,
+        steps_to_imagined_steps_end=args.steps_to_imagined_steps_end,
         predict_diff=bool(args.predict_diff),
         int_rew_weight_start=args.int_rew_weight_start,
         int_rew_weight_end=args.int_rew_weight_end,
@@ -227,7 +234,8 @@ if __name__ == '__main__':
     parser.add_argument('--actor_critic_updates_per_model_update', type=int, default=-1)
     parser.add_argument('--policy_update_period', type=int, default=1)
     parser.add_argument('--target_update_period', type=int, default=1)
-    parser.add_argument('--num_imagined_steps', type=int, default=5)
+    parser.add_argument('--num_imagined_steps_end', type=int, default=5)
+    parser.add_argument('--steps_to_imagined_steps_end', type=int, default=10_000)
     parser.add_argument('--int_rew_weight_start', type=float, default=0.0)
     parser.add_argument('--int_rew_weight_end', type=float, default=0.0)
     parser.add_argument('--int_rew_weight_decrease_steps', type=int, default=-1)
