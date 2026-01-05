@@ -2,7 +2,7 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Jan_04_23_50_NewLearner_Test_1'
+PROJECT_NAME = 'MT_Jan_05_15_30_NewLearner_Test_4'
 
 entity = 'kiten'
 _applicable_configs = {
@@ -14,7 +14,6 @@ _applicable_configs = {
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'init_state': ["3.1415,0.0"],
     'parameter_decay': [0.0],
     'reset_models': [1],
     'save_video': [0],
@@ -47,10 +46,9 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'dyn_ent_lr': [3e-4],
                              'lr': [3e-4],
                              'sample_model': [0],
-                             'critic_real_data_update_period': [5],
-                             'updates_per_step': [1],
-                             'actor_critic_updates_per_model_update': [1, 20, 100],
-                             'num_imagined_steps': [1, 5],
+                             'updates_per_step': [1,2,5],
+                             'actor_critic_updates_per_model_update': [1,5],
+                             'num_imagined_steps': [1, 2, 5],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
                              'env_param_mode': ['stationary'],
@@ -79,17 +77,16 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'dyn_ent_lr': [3e-4],
                              'lr': [3e-4],
                              'sample_model': [0],
-                             'critic_real_data_update_period': [5],
-                             'updates_per_step': [1],
-                             'actor_critic_updates_per_model_update': [1, 20, 100],
-                             'num_imagined_steps': [1, 5],
+                             'updates_per_step': [1,2,5],
+                             'actor_critic_updates_per_model_update': [1,5],
+                             'num_imagined_steps': [1, 2, 5],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
                              'env_param_mode': ['stationary'],
 
                               # replay_buffer_size
                              'replay_buffer_mode': ['none'],
-                             'replay_buffer_size': [10_000],
+                             'replay_buffer_size': [4_000_000],
 
                              # resets / perturbations
                              'perturb_policy': [0],
@@ -188,6 +185,7 @@ configs_mountaincar = {
     'action_repeat': [1],
     'num_neurons': [256],
     'num_hidden_layers': [2],
+    'init_state': ["None"],
 }
 
 configs_pendulum = {
@@ -197,6 +195,7 @@ configs_pendulum = {
     'action_repeat': [1],
     'num_neurons': [256],
     'num_hidden_layers': [2],
+    'init_state': ["3.1415,0.0"],
 }
 
 configs_gym = {
@@ -207,6 +206,7 @@ configs_gym = {
     'action_repeat': [2],
     'num_neurons': [256],
     'num_hidden_layers': [2],
+    'init_state': ["None"],
 }
 
 configs_cheetah = {
@@ -216,6 +216,7 @@ configs_cheetah = {
     'action_repeat': [2],
     'num_neurons': [256],
     'num_hidden_layers': [2],
+    'init_state': ["None"],
 }
 
 configs_walker = {

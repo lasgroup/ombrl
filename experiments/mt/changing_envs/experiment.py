@@ -185,6 +185,8 @@ def experiment(
         'policy_reset_period': policy_reset_period,
         'critic_reset_period': critic_reset_period,
         'model_reset_period': model_reset_period,
+        'num_imagined_steps': num_imagined_steps,
+        'actor_critic_updates_per_model_update': actor_critic_updates_per_model_update,
     }
 
     scheduler_fn, apply_fn, env_log = get_scheduler_apply_fn(env_name=env_name, env_param_mode=env_param_mode, parameter_decay=parameter_decay)
@@ -293,7 +295,7 @@ if __name__ == '__main__':
     parser.add_argument('--project_name', type=str, default='MT_Test')
     parser.add_argument('--entity_name', type=str, default='kiten')
     parser.add_argument('--alg_name', type=str, default='continualmaxinfo')
-    parser.add_argument('--env_name', type=str, default='Pendulum-v1')
+    parser.add_argument('--env_name', type=str, default='HalfCheetah-v4')
     # 'Pendulum-v1', 'Walker2d-v4', 'Swimmer-v4', 'Pusher-v4', 'Reacher-v4', 'Humanoid-v4'
     parser.add_argument('--action_cost', type=float, default=0.0)
     parser.add_argument('--action_repeat', type=int, default=1)
@@ -338,10 +340,10 @@ if __name__ == '__main__':
     parser.add_argument('--use_bronet', type=int, default=1)
     parser.add_argument('--pseudo_ct', type=int, default=0)
     parser.add_argument('--predict_diff', type=int, default=1)
-    parser.add_argument('--env_param_mode', type=str, default='exponential', choices=[
+    parser.add_argument('--env_param_mode', type=str, default='stationary', choices=[
         'exponential', 'stationary', 'episodic', 'maximal', 'minimal', 'step', 'slow', 'piecewise'
         ])
-    parser.add_argument('--init_state', type=str, default="3.1415,0.0", help="Initial state for environment")
+    parser.add_argument('--init_state', type=str, default="None", help="Initial state for environment")
     parser.add_argument('--parameter_decay', type=float, default=0.2)
 
     parser.add_argument('--seed', type=int, default=0)

@@ -51,7 +51,6 @@ class ContinualMaxInfoConfig:
     init_mean: Optional[np.ndarray] = None
     policy_final_fc_init_scale: float = 1.0
     sample_model: bool = True
-    critic_real_data_update_period: int = 1
     policy_update_period: int = 1
     num_imagined_steps: int | optax.Schedule = 1
     actor_critic_updates_per_model_update: int | optax.Schedule = -1
@@ -242,7 +241,7 @@ def update_ac_jit(
     """Actor-Critic update logic for use with IMAGINED data."""
     rng, key = jax.random.split(rng)
     
-    # 1. Update Critic (MaxInfoRL version uses ensemble for intrinsic reward)
+    # Update critic
     new_critic, ens_state, critic_info = update_critic(
         key=key, actor=actor, critic=critic, target_critic=target_critic,
         temp=temp, dyn_entropy_temp=dyn_entropy_temp, ens=ens, ens_state=ens_state,
@@ -251,7 +250,7 @@ def update_ac_jit(
 
     new_target_critic = target_update(new_critic, target_critic, tau) if update_target else target_critic
 
-    # 2. Update Policy & Temperatures
+    # Update policy and temperature
     if update_policy:
         rng, key = jax.random.split(rng)
         new_actor, new_ens_state, actor_info = update_actor(
@@ -308,6 +307,8 @@ class ContinualMaxInfoLearner(object):
             "No reward model specified and neither the reward function is being learned."
         if self.config.predict_reward:
             out_dim += 1
+        if self.config.dt is not None and self.config.predict_diff:
+            assert self.config.pseudo_ct, "dt specified but pseudo continuous time flag not set."
         model_type = ProbabilisticEnsemble if self.config.learn_std else DeterministicEnsemble
         self.ensemble = model_type(model_kwargs={'hidden_dims': self.config.model_hidden_dims + (out_dim,)}, 
                                    optimizer=make_opt(self.config.ens_lr, self.config.ens_wd), 
@@ -370,7 +371,7 @@ class ContinualMaxInfoLearner(object):
         return np.clip(actions, -1, 1)
 
     def update(self, batch: Batch, episode_idx: int = None) -> InfoDict:
-        # 0. Perturbation (Continual Logic)
+        # Pertubation
         if self.config.reset_models and episode_idx != getattr(self, '_last_perturbed_episode', -1):
             if episode_idx is None:
                 raise ValueError(
@@ -387,7 +388,7 @@ class ContinualMaxInfoLearner(object):
 
         self.step += 1
         
-        # 1. Update Ensemble on REAL data (Crucial Fix)
+        # Update Ensemble
         new_ens_state, ens_info = update_ensemble_jit(
             batch, 
             self.ensemble, 
@@ -399,7 +400,7 @@ class ContinualMaxInfoLearner(object):
         )
         self.ens_state = new_ens_state
 
-        # 2. Generate Rollout (Imagination Buffer)
+        # Generate rollouts
         rollout_key, self.rng = jax.random.split(self.rng)
         full_rollout = rollout_learned_model(
             batch, self.ensemble, self.ens_state, self.actor, self.config.predict_reward, 
@@ -407,13 +408,13 @@ class ContinualMaxInfoLearner(object):
             self.config.dt, self.config.action_repeat, self.config.reward_model
         )
 
-        # 3. Sample and Update Actor-Critic on IMAGINED data
+        # Update actor/critic
         sample_key, self.rng = jax.random.split(self.rng)
         indices = jax.random.randint(sample_key, (self.config.actor_critic_updates_per_model_update,), 0, self.config.num_imagined_steps + 1)
         
         aggregated_info = collections.defaultdict(list)
         for idx in indices:
-            current_batch = jax.tree_util.tree_map(lambda x: x[idx], full_rollout) # TODO Huh?
+            current_batch = jax.tree_util.tree_map(lambda x: x[idx], full_rollout)
             train_batch = Batch(current_batch.observations, current_batch.actions, current_batch.rewards, current_batch.masks, current_batch.next_observations)
             
             self.rng, self.actor, self.critic, self.target_actor, self.target_critic, \
