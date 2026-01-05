@@ -120,7 +120,6 @@ def experiment(
 
             alg_kwargs.update(dict(
                 sample_model=sample_model,
-                critic_real_data_update_period=critic_real_data_update_period,
                 max_gradient_norm=max_gradient_norm,
                 reset_models=reset_models,
                 perturb_policy=perturb_policy,
@@ -166,7 +165,7 @@ def experiment(
         'env_name': env_name,
         'model_update_delay': model_update_delay,
         'sample_model': sample_model,
-        'critic_real_data_update_period': critic_real_data_update_period,
+        'critic_real_data_update_period': None if alg_name != 'maxinfombsac' else critic_real_data_update_period,
         'use_bronet': use_bronet,
         'max_gradient_norm': max_gradient_norm,
         'updates_per_step': updates_per_step,
@@ -319,7 +318,7 @@ if __name__ == '__main__':
     parser.add_argument('--eval_episodes', type=int, default=5)
     parser.add_argument('--exp_hash', type=str, default='maxinfombsac')
     parser.add_argument('--sample_model', type=int, default=0)
-    parser.add_argument('--critic_real_data_update_period', type=int, default=5)
+    parser.add_argument('--critic_real_data_update_period', type=int, default=None)
     parser.add_argument('--updates_per_step', type=int, default=1)
     parser.add_argument('--num_imagined_steps', type=int, default=1)
     parser.add_argument('--actor_critic_updates_per_model_update', type=int, default=1)
