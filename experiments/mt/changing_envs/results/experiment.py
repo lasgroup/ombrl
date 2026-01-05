@@ -58,7 +58,7 @@ def experiment(
 ):
     from ombrl.utils.continual_rl_train_utils import train
 
-    exp_hash = env_param_mode # HACK
+    exp_hash = env_param_mode + '_' + exp_hash # HACK
     print(f"WARNING: Experiment hash overriden to: {exp_hash}")
 
     env_kwargs = {'action_cost': action_cost,
@@ -306,10 +306,10 @@ if __name__ == '__main__':
     parser.add_argument('--num_neurons', type=int, default=256)
     parser.add_argument('--num_hidden_layers', type=int, default=2)
     parser.add_argument('--wandb_log', type=int, default=1)
-    parser.add_argument('--save_video', type=int, default=1)
+    parser.add_argument('--save_video', type=int, default=0)
     parser.add_argument('--replay_buffer_mode', type=str, default='reset', choices=['none', 'window', 'reset'])
     parser.add_argument('--replay_buffer_size', type=int, default=2_000)
-    parser.add_argument('--max_steps', type=int, default=4_000)
+    parser.add_argument('--max_steps', type=int, default=2001)
     parser.add_argument('--use_tqdm', type=int, default=1)
     parser.add_argument('--training_start', type=int, default=0)
     parser.add_argument('--batch_size', type=int, default=256)
