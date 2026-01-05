@@ -3,7 +3,7 @@
 import functools
 from typing import Optional, Sequence, Tuple, Dict, List, Callable
 
-import jax
+import jax  
 import jax.numpy as jnp
 import numpy as np
 import optax
@@ -58,10 +58,10 @@ def predict_batch_from_batch(
         else:
             return reward_model(o, a, no)
 
-    new_rewards = jax.vmap(per_sample, in_axes=(0, 0, 0))(
+    new_rewards = jax.vmap(per_sample, in_axes=0)(
         batch.observations, batch.actions, batch.next_observations
     )
-    new_rewards = action_repeat * new_rewards
+    new_rewards = action_repeat * new_rewards # If we repeat action we scale the reward with action repeat in order to have same reward scale
     return batch._replace(rewards=new_rewards)
 
 
@@ -74,6 +74,9 @@ def get_imagined_batch(
         sample_model: bool,
         key: PRNGKey,
         ) -> Batch:
+    """
+    Generate imagined next states using the ensemble model.
+    """
     input = jnp.concatenate([batch.observations, batch.actions], axis=-1)
     ens_mean, ens_std = ens(input=input, state=ens_state, denormalize_output=True)
     noise_key, key = jax.random.split(key, 2)
@@ -107,10 +110,10 @@ def update_ensemble(batch: Batch,
                                             state=ens_state,
                                             update_normalizer=True)
 
+    outputs = batch.next_observations
     if predict_diff:
-        outputs = batch.next_observations - batch.observations
-    else:
-        outputs = batch.next_observations
+        outputs -= batch.observations
+        
     if predict_rewards: 
         outputs = jnp.concatenate([outputs, batch.rewards.reshape(-1, 1)], axis=-1)
     new_ens_state, (loss, mse) = ens.update(
