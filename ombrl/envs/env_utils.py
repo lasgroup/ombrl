@@ -172,8 +172,8 @@ def main():
     import matplotlib.pyplot as plt
     env_name = "Pendulum-v1"
     env_param_mode = "exponential"
-    num_episodes = 50
-    alphas = [0.0, 0.05, 0.1, 0.2, 0.5]  # Testing a range of decay speeds
+    num_episodes = 75 
+    alphas = [0.0, 0.025, 0.05, 0.1, 0.2, 0.5]  # Testing a range of decay speeds
 
     plt.figure(figsize=(10, 6))
 

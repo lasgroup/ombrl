@@ -233,6 +233,8 @@ def train(
             for k, v in eval_stats.items():
                 summary_writer.add_scalar(f'evaluation/average_{k}s', v,
                                           info['total']['timesteps'])
+            
+            summary_writer.add_scalar('evaluation/episode', env.episode_idx, info['total']['timesteps'])
             summary_writer.flush()
 
             eval_returns.append(
@@ -245,6 +247,9 @@ def train(
             observation, _ = env.reset()
             terminate = False
             truncate = False
+
+            summary_writer.add_scalar('training/episode', env.episode_idx, info['total']['timesteps'])
+
             for k, v in info['episode'].items():
                 summary_writer.add_scalar(f'training/{k}', v,
                                           info['total']['timesteps'])
