@@ -73,7 +73,6 @@ def train(
                        **env_kwargs)
         
         if init_state is not None:
-            # raise NotImplementedError("InitWrapper not tested in this version.") # TODO: Test
             env = InitWrapper(env, init_state=init_state)
 
         if episodic_param_scheduler is not None:
@@ -164,6 +163,8 @@ def train(
 
     eval_returns = []
     observation, _ = env.reset()
+
+    # Training Loop
     for i in tqdm.tqdm(range(1, max_steps + 1),
                        smoothing=0.1,
                        disable=not use_tqdm):

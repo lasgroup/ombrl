@@ -36,6 +36,8 @@ def experiment(
         sample_model: bool = False,
         critic_real_data_update_period: int = 2,
         updates_per_step: int = 1,
+        num_imagined_steps: int = 1,
+        actor_critic_updates_per_model_update: int = 1,
         use_bronet: bool = True,
         init_temperature_dyn_entropy: float = 1.0,
         reset_models:  bool = True,
@@ -134,8 +136,10 @@ def experiment(
                 predict_diff=predict_diff,
                 dt=None,
                 action_repeat=env_kwargs.get('action_repeat', 1),
+                num_imagined_steps=num_imagined_steps,
+                actor_critic_updates_per_model_update=actor_critic_updates_per_model_update,
             ))
-            updates_per_step = critic_real_data_update_period * updates_per_step
+            updates_per_step = updates_per_step
 
     model_update_delay = 1
 
@@ -259,6 +263,8 @@ def main(args):
         sample_model=bool(args.sample_model),
         critic_real_data_update_period=args.critic_real_data_update_period,
         updates_per_step=args.updates_per_step,
+        num_imagined_steps=args.num_imagined_steps,
+        actor_critic_updates_per_model_update=args.actor_critic_updates_per_model_update,
         init_temperature_dyn_entropy=args.init_temperature_dyn_entropy,
         reset_models=bool(args.reset_models),
         perturb_policy=bool(args.perturb_policy),
@@ -313,6 +319,8 @@ if __name__ == '__main__':
     parser.add_argument('--sample_model', type=int, default=0)
     parser.add_argument('--critic_real_data_update_period', type=int, default=5)
     parser.add_argument('--updates_per_step', type=int, default=1)
+    parser.add_argument('--num_imagined_steps', type=int, default=1)
+    parser.add_argument('--actor_critic_updates_per_model_update', type=int, default=1)
     parser.add_argument('--init_temperature_dyn_entropy', type=float, default=1.0)
     parser.add_argument('--reset_models', type=int, default=1)
 
