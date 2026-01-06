@@ -13,7 +13,7 @@ from jaxrl.agents.sac.critic import target_update
 from jaxrl.agents.sac.critic import update as update_critic
 import collections
 import copy
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from jaxrl.datasets import Batch
 from jaxrl.networks import critic_net, policies
 from jaxrl.networks.common import InfoDict, Model, PRNGKey
@@ -21,7 +21,7 @@ from maxinforl_jax.models.ensemble_model import EnsembleState, DeterministicEnse
 from ombrl.utils.pertubation import PerturbationModule
 
 ModelBasedBatch = collections.namedtuple(
-    'Batch',
+    'ModelBasedBatch',
     ['observations', 'actions', 'rewards', 'intrinsic_rewards', 'masks', 'next_observations'])
 
 
@@ -398,6 +398,29 @@ class SOMBRLExplorerLearner(object):
             steps=self.steps,
             rng=self.rng,
         )
+
+    @classmethod
+    def load_from_agent_state(cls,
+                              seed: int,
+                              observations: jnp.ndarray,
+                              actions: jnp.ndarray,
+                              agent_state: AgentState,
+                              load_params: bool = False):
+        config = asdict(agent_state.config)
+        agent = cls(seed, observations, actions, **config)
+        if load_params:
+            agent.actor = agent_state.actor
+            agent.critic = agent_state.critic
+            agent.target_critic = agent_state.target_critic
+            agent.temp = agent.temp
+            agent.ens_state = agent_state.ens_state
+            agent.expl_actor = agent_state.expl_actor
+            agent.expl_critic = agent_state.expl_critic
+            agent.expl_target_critic = agent_state.expl_target_critic
+            agent.expl_temp = agent_state.expl_temp
+            agent.perturbation_module = agent_state.perturbation_module
+            agent.rng = agent_state.rng
+        return agent
 
     def init_dynamics_model(self, rng: PRNGKey, observations: jnp.ndarray, actions: jnp.ndarray):
         model_optimizer = optax.adamw(learning_rate=self._config.ens_lr, weight_decay=self._config.ens_wd)

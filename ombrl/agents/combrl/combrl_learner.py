@@ -409,6 +409,13 @@ class COMBRLExplorerLearner(object):
                 value=int_rew_weight_start
             )
 
+    def agent_state(self):
+        return None
+
+    @classmethod
+    def load_from_agent_state(cls, *args, **kwargs):
+        raise NotImplementedError
+
     def sample_actions(self,
                        observations: np.ndarray,
                        temperature: float = 1.0,
