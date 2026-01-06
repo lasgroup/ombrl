@@ -166,7 +166,7 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
 
             max_power = 0.004
             min_power = 0.001
-            transition_begin = 5
+            transition_begin = 50
 
 
             def scheduler_fn(ep_idx: int):
@@ -185,11 +185,15 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
             raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")    
             
     elif env_name == 'HalfCheetah-v4':
+        # Store the original gear ratios to use as a baseline for scaling
+        # These are the default MuJoCo values for HalfCheetah-v4
+        base_gears = jnp.array([120., 90., 60., 120., 60., 30.])
+
         def apply_fn(base_env: gym.Env, params: dict):
-            # The actuator_gear scales the input torque for the 6 joints
-            # We multiply the base gear by our scale factor
-            # Note: We use .unwrapped to access the MuJoCo model attributes
-            base_env.unwrapped.model.actuator_gear[:, 0] = params["gear_scale"] * 120.0 
+            # Multiply the entire baseline array by the gear_scale factor
+            new_gears = base_gears * params["gear_scale"]
+            # Convert back to numpy for the MuJoCo C-binding compatibility
+            base_env.unwrapped.model.actuator_gear[:, 0] = new_gears
 
         env_logs = {}
         # Configuration for HalfCheetah strength
@@ -286,7 +290,7 @@ def main():
     env_param_mode = "exponential"
     
     # Increase episodes to see the full decay curve
-    num_episodes = 50 
+    num_episodes = 150 
     # Use a range of alphas to see how fast the car gets "weaker"
     alphas = [0.0, 0.05, 0.1, 0.2] 
 
