@@ -3,11 +3,72 @@ import gymnasium.wrappers
 from typing import Optional, Callable
 
 import gymnasium as gym
+from gymnasium.spaces import Box
 from gymnasium.wrappers import RescaleAction
 from gymnasium.wrappers.pixel_observation import PixelObservationWrapper
 
 from jaxrl import wrappers
+import numpy as np
+import collections
 
+
+class ActionScalar(gym.Wrapper):
+    def __init__(self, env, scale_factor: float):
+        super().__init__(env)
+        assert scale_factor > 0
+        self._scale_factor = scale_factor
+
+    def step(self, action):
+        act = action * self._scale_factor
+        return super().step(act)
+
+
+class ActionStacker(gym.Wrapper):
+
+    def __init__(self,
+                 env,
+                 buffer_size: int,
+                 step_delays: int | None = None,
+                 store_action_buffer_in_obs: bool = True,
+                 stack_axis=-1):
+        super().__init__(env)
+        if step_delays is None:
+            step_delays = buffer_size
+        assert step_delays <= buffer_size
+        self._step_delays = step_delays
+        self._buffer_size = buffer_size
+        self._store_action_buffer_in_obs = store_action_buffer_in_obs
+        self._stack_axis = stack_axis
+        self._action_buffer = collections.deque([], maxlen=buffer_size)
+        if self._store_action_buffer_in_obs:
+            low = np.repeat(self.action_space.low, buffer_size, axis=stack_axis)
+            high = np.repeat(self.action_space.high,
+                             buffer_size,
+                             axis=stack_axis)
+            low = np.concatenate([self.observation_space.low, low], axis=self._stack_axis)
+            high = np.concatenate([self.observation_space.high, high], axis=self._stack_axis)
+            self.observation_space = Box(low=low, high=high)
+
+    def reset(self, *args, **kwargs):
+        obs, info = self.env.reset()
+        dummy_action = np.zeros_like(self.action_space.sample())
+        for _ in range(self._buffer_size):
+            self._action_buffer.append(dummy_action)
+        return self._get_obs(obs), info
+
+    def step(self, action):
+        self._action_buffer.append(action)
+        action_idx = 1 + self._step_delays
+        applied_action = self._action_buffer[-action_idx]
+        obs, reward, done, truncate, info = self.env.step(applied_action)
+        return self._get_obs(obs), reward, done, truncate, info
+
+    def _get_obs(self, obs: np.ndarray):
+        assert len(self._action_buffer) == self._buffer_size
+        if self._store_action_buffer_in_obs:
+            act_obs = np.concatenate(list(self._action_buffer), axis=self._stack_axis)
+            obs = np.concatenate([obs, act_obs], axis=self._stack_axis)
+        return obs
 
 
 def make_humanoid_bench_env(

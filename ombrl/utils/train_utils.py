@@ -1,3 +1,4 @@
+import copy
 import os
 import random
 import time
@@ -15,7 +16,7 @@ from ombrl.utils.evaluation import evaluate
 from ombrl.utils.multiple_reward_wrapper import RewardFunction
 
 from ombrl.utils.wrappers import PendulumInitWrapper
-from ombrl.utils.env_utils import make_metaworld_env, make_humanoid_bench_env
+from ombrl.utils.env_utils import make_metaworld_env, make_humanoid_bench_env, ActionScalar, ActionStacker
 from jaxrl.utils import make_env
 import wandb
 from jaxrl.evaluation import evaluate as jaxrl_evaluate
@@ -38,6 +39,13 @@ def create_env(
         recording_image_size: Optional[int] = None,
         eval_episode_trigger: Optional[Callable[[int], bool]] = None,
 ):
+    action_scalar = env_kwargs.get('action_scalar')
+    env_kwargs.pop('action_scalar', None)
+    buffer_size = env_kwargs.get('buffer_size')
+    env_kwargs.pop('buffer_size', None)
+    action_delays = env_kwargs.get('action_delays')
+    env_kwargs.pop('action_delays', None)
+
     if 'humanoid_bench' in env_name:
         _, task_name = env_name.split('/')
         env = make_humanoid_bench_env(env_name=task_name, seed=seed,
@@ -70,6 +78,12 @@ def create_env(
         if env_name == 'Pendulum-v1':
             env = PendulumInitWrapper(env, init_angle=np.pi, init_vel=0.0)
             eval_env = PendulumInitWrapper(eval_env, init_angle=np.pi, init_vel=0.0)
+    if action_scalar:
+        env = ActionScalar(env, scale_factor=action_scalar)
+        eval_env = ActionScalar(eval_env, scale_factor=action_scalar)
+    if buffer_size:
+        env = ActionStacker(env, buffer_size=buffer_size, step_delays=action_delays)
+        eval_env = ActionStacker(eval_env, buffer_size=buffer_size, step_delays=action_delays)
     return env, eval_env
 
 
@@ -286,23 +300,40 @@ def train_sim_to_real(
         env_kwargs_real: Dict,
         max_steps_sim: int = 1_000_000,
         max_steps_real: int = 250_000,
+        updates_per_step_sim: int = 1,
+        updates_per_step_real: int = 1,
         logs_dir: str = './logs',
+        log_config: Optional[Dict] = None,
         *args,
         **kwargs
 ):
     logs_dir_sim = os.path.join(logs_dir, 'sim')
+    if log_config is None:
+        sim_config = {'env_class': 'sim'}
+    else:
+        sim_config = copy.deepcopy(log_config)
+        sim_config.update({'env_class': 'sim'})
     agent_state = train(env_name=env_name_sim,
                         env_kwargs=env_kwargs_sim,
                         max_steps=max_steps_sim,
                         logs_dir=logs_dir_sim,
+                        updates_per_step=updates_per_step_sim,
+                        log_config=sim_config,
                         *args, **kwargs)
     logs_dir_real = os.path.join(logs_dir, 'real')
+    if log_config is None:
+        real_config = {'env_class': 'real'}
+    else:
+        real_config = copy.deepcopy(log_config)
+        real_config.update({'env_class': 'real'})
     return train(
         env_name=env_name_real,
         env_kwargs=env_kwargs_real,
         max_steps=max_steps_real,
         prior_agent_state=agent_state,
         logs_dir=logs_dir_real,
+        updates_per_step=updates_per_step_real,
+        log_config=real_config,
         *args,
         **kwargs
     )
