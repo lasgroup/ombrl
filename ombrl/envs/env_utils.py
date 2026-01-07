@@ -248,6 +248,68 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
             })
         else:
             raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
+        
+    elif env_name == 'Hopper-v4':
+        # Default gears for Hopper (hip, knee, ankle) are typically 200.0
+        base_gears = jnp.array([200., 200., 200.])
+
+        def apply_fn(base_env: gym.Env, params: dict):
+            # Scale the torque capacity of the three leg joints
+            new_gears = base_gears * params["gear_scale"]
+            base_env.unwrapped.model.actuator_gear[:, 0] = new_gears
+
+        env_logs = {}
+        max_scale = 1.0  # Full power (required for high jumps)
+        min_scale = 0.3  # Below ~0.3, the Hopper usually can't stay upright
+
+        if env_param_mode == 'episodic':
+            transition_steps = 20
+            transition_begin = 5
+            scale_schedule = linear_schedule(
+                init_value=max_scale,
+                end_value=min_scale,
+                transition_steps=transition_steps,
+                transition_begin=transition_begin
+            )
+            
+            def scheduler_fn(ep_idx: int):
+                return {"gear_scale": float(scale_schedule(ep_idx))}
+
+            env_logs.update({
+                "hopper_scale_init": max_scale,
+                "hopper_scale_final": min_scale,
+            })
+
+        elif env_param_mode == 'maximal':
+            def scheduler_fn(ep_idx: int): return {"gear_scale": max_scale}
+            env_logs["hopper_gear_scale"] = max_scale
+
+        elif env_param_mode == 'minimal':
+            def scheduler_fn(ep_idx: int): return {"gear_scale": min_scale}
+            env_logs["hopper_gear_scale"] = min_scale
+
+        elif env_param_mode == 'step':
+            def scheduler_fn(episode_idx: int):
+                return {"gear_scale": max_scale if episode_idx < 10 else min_scale}
+            env_logs["hopper_step_episode"] = 10
+
+        elif env_param_mode == 'exponential':
+            # Slightly faster decay as Hopper experiments often run for fewer episodes 
+            # than Cheetah, but still uses a high transition_begin to allow learning.
+            decay_rate = kwargs.get('parameter_decay', 0.01)
+            transition_begin = 300 
+
+            def scheduler_fn(ep_idx: int):
+                t = max(0, ep_idx - transition_begin)
+                val = jnp.exp(-decay_rate * t) * (max_scale - min_scale) + min_scale
+                return {"gear_scale": float(val)}
+
+            env_logs.update({
+                "hopper_decay_rate": decay_rate,
+                "hopper_transition_begin": transition_begin
+            })
+        else:
+            raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
     
     else:
         raise ValueError(f"Unknown env_name: {env_name}")
@@ -286,13 +348,13 @@ def main():
 """
 def main():
     import matplotlib.pyplot as plt
-    env_name = "MountainCarContinuous-v0"
+    env_name = "Hopper-v4"
     env_param_mode = "exponential"
     
     # Increase episodes to see the full decay curve
-    num_episodes = 150 
+    num_episodes = 1000 
     # Use a range of alphas to see how fast the car gets "weaker"
-    alphas = [0.0, 0.05, 0.1, 0.2] 
+    alphas = [0.0, 0.002, 0.005, 0.007] 
 
     plt.figure(figsize=(10, 6))
 
@@ -305,7 +367,7 @@ def main():
 
         episodes = range(num_episodes)
         # Change "torques" to "powers" and access the correct dictionary key
-        powers = [scheduler_fn(ep)["power"] for ep in episodes]
+        powers = [scheduler_fn(ep)["gear_scale"] for ep in episodes]
         
         # Plotting against episode index
         plt.plot(episodes, powers, label=f'α = {alpha}')
