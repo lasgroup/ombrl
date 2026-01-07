@@ -307,19 +307,22 @@ def train_sim_to_real(
         *args,
         **kwargs
 ):
-    logs_dir_sim = os.path.join(logs_dir, 'sim')
-    if log_config is None:
-        sim_config = {'env_class': 'sim'}
+    if max_steps_sim > 0:
+        logs_dir_sim = os.path.join(logs_dir, 'sim')
+        if log_config is None:
+            sim_config = {'env_class': 'sim'}
+        else:
+            sim_config = copy.deepcopy(log_config)
+            sim_config.update({'env_class': 'sim'})
+        agent_state = train(env_name=env_name_sim,
+                            env_kwargs=env_kwargs_sim,
+                            max_steps=max_steps_sim,
+                            logs_dir=logs_dir_sim,
+                            updates_per_step=updates_per_step_sim,
+                            log_config=sim_config,
+                            *args, **kwargs)
     else:
-        sim_config = copy.deepcopy(log_config)
-        sim_config.update({'env_class': 'sim'})
-    agent_state = train(env_name=env_name_sim,
-                        env_kwargs=env_kwargs_sim,
-                        max_steps=max_steps_sim,
-                        logs_dir=logs_dir_sim,
-                        updates_per_step=updates_per_step_sim,
-                        log_config=sim_config,
-                        *args, **kwargs)
+        agent_state = None
     logs_dir_real = os.path.join(logs_dir, 'real')
     if log_config is None:
         real_config = {'env_class': 'real'}
