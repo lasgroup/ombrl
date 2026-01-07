@@ -308,6 +308,60 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
                 "hopper_decay_rate": decay_rate,
                 "hopper_transition_begin": transition_begin
             })
+
+        else:
+            raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
+
+    elif env_name == 'Reacher-v4':
+        # Reacher typically has a base gear of 1.0 for both joints
+        base_gears = jnp.array([200.0, 200.0])
+
+        def apply_fn(base_env: gym.Env, params: dict):
+            # Scale the torque for the shoulder and elbow motors
+            new_gears = base_gears * params["gear_scale"]
+            base_env.unwrapped.model.actuator_gear[:, 0] = new_gears
+
+        env_logs = {}
+        max_scale = 1.0
+        min_scale = 0.1  # At 0.1, the arm is very "floppy"
+
+        if env_param_mode == 'episodic':
+            transition_steps = 20
+            transition_begin = 5
+            scale_schedule = linear_schedule(
+                init_value=max_scale,
+                end_value=min_scale,
+                transition_steps=transition_steps,
+                transition_begin=transition_begin
+            )
+            
+            def scheduler_fn(ep_idx: int):
+                return {"gear_scale": float(scale_schedule(ep_idx))}
+            
+            env_logs.update({"reacher_scale_init": max_scale, "reacher_scale_final": min_scale})
+
+        elif env_param_mode == 'exponential':
+            decay_rate = kwargs.get('parameter_decay', 0.01)
+            transition_begin = 2000
+
+            def scheduler_fn(ep_idx: int):
+                t = max(0, ep_idx - transition_begin)
+                val = jnp.exp(-decay_rate * t) * (max_scale - min_scale) + min_scale
+                return {"gear_scale": float(val)}
+
+            env_logs.update({
+                "reacher_decay_rate": decay_rate,
+                "reacher_transition_begin": transition_begin
+            })
+            
+        elif env_param_mode == 'maximal':
+            def scheduler_fn(ep_idx: int): return {"gear_scale": max_scale}
+            env_logs["reacher_gear_scale"] = max_scale
+
+        elif env_param_mode == 'minimal':
+            def scheduler_fn(ep_idx: int): return {"gear_scale": min_scale}
+            env_logs["reacher_gear_scale"] = min_scale
+
         else:
             raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
     
@@ -348,13 +402,13 @@ def main():
 """
 def main():
     import matplotlib.pyplot as plt
-    env_name = "Hopper-v4"
+    env_name = "Reacher-v4"
     env_param_mode = "exponential"
     
     # Increase episodes to see the full decay curve
-    num_episodes = 1000 
+    num_episodes = 6000 
     # Use a range of alphas to see how fast the car gets "weaker"
-    alphas = [0.0, 0.002, 0.005, 0.007] 
+    alphas = [0.0, 0.0005, 0.001, 0.002] 
 
     plt.figure(figsize=(10, 6))
 
