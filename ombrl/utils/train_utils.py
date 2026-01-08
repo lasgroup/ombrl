@@ -108,7 +108,7 @@ def train(
         batch_size: int = 256,
         log_interval: int = 1_000,
         eval_interval: int = 5_000,
-        save_interval: int = 10_000,
+        save_interval: int = -1,
         eval_episodes: int = 5,
         exp_hash: str = '',
         n_steps_returns: int = -1,
@@ -250,7 +250,7 @@ def train(
                     summary_writer.add_scalar(f'training/{k}', v, i)
                 summary_writer.flush()
 
-        if i % save_interval == 0:
+        if i % save_interval == 0 and save_interval > 0:
 
             train_state = TrainState(
                 replay_buffer=replay_buffer,
