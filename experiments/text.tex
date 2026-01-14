@@ -1,0 +1,131 @@
+\chapter{Problem Formulation and Modeling Assumptions}
+\label{chapter:problem}
+
+\section{The Continual RL Problem}
+
+\Citet{khetarpal_towards_2022} define a general Continual RL problem as follows:
+
+\begin{definition}[General CRL Problem $\mathcal{M}_{\mathrm{CRL}}$]
+\label{def:crl}
+ Given a state space $\setX$, action-space $\setU$, an observation space $\setY$, a reward function $r: \setX \times \setU \rightarrow \setR \subset \R$, a transition function $\vf^*: \setX \times \setU \rightarrow \setX$, and an observation function $\vy: \setX \rightarrow \setY$, the most general continual reinforcement learning problem can be expressed as:
+\[
+M_t \doteq\langle\setX(t), \setU(t), r_t, \vf^*_t, \vy_t, \setY(t)\rangle,
+\]
+where each component of the problem formulation can be considered as a non-stationary function of form $g(i, t)$ where $i$ is the input specific to each component.
+\end{definition}
+
+As for scope, we mainly consider $\vf^*_t$, i.e.~time-varying dynamics. Assume that the state-action space $\setZ\defeq\setX\times\setU$ is constant.
+
+Now, consider an \emph{unknown} discrete-time time-variant dynamical system $\vf^*_t$, with state $\vx \in \setX \subset \R^{d_x}$ and control inputs $\vu \in \setU \subset \R^{d_u}$:
+\begin{equation}
+    \vx_{t+1} = \vf^*_t(\vx_t, \vu_t) + \vw_t,
+    \label{eq:system_eq}
+\end{equation}
+where $\vw_t \in \setW_t \subseteq \R^{d_x}$ is the process noise. Following the optimal control \citep[OC, c.f.][]{luenberger_oc_1971} problem, the associated finite-horizon RL setting \citep{puterman_markov_1994} is then given as follows.
+
+\begin{problem}[Finite-horizon RL setting]
+\label{pr:finite_horizon_problem}
+Building on \cref{def:crl} and \cref{eq:system_eq}, consider the optimal control problem with time-varying dynamics
+\begin{align}
+    J(\vpi^*_{0:T-1})&=\max_{\vpi_0\ldots\vpi_{T-1} \in \Pi} J(\vpi_{0\ldots T-1}) = \max_{\vpi_0\ldots\vpi_{T-1} \in \Pi} \E\left[\sum_{t=0}^{T-1} r_t(\vx_t, \vu_t)\right] \label{eq:finite_horizon_problem}\\
+    \textrm{s.t. }&\vx_{t+1} = \vf^*_t(\vx_{t}, \vu_{t}) + \vw_t, \quad \vu_t \sim \vpi_t(\vx_t),\quad \vx_0 = \vx(0), \notag \\
+    & (\vx_t, \vu_t) \in \setX \times \setU \subset \R^{d_x+d_u}.\notag
+\end{align}
+    % \ki{This is bugged. It depends on wether changes occur from episode to episode or also within an episode. So $J(\vpi^*_{0:T-1})$ from the LHS can't be if we only assume $\vf^*$ only changes at each episode.}
+\end{problem}
+where $\Pi$ is the considered policy class. Moreover, we first consider the episodic RL setting, with episodes $n \in \{1, \ldots, N\}$, and study a model-based approach.
+We then use the data collected up to the current episode $n$ to estimate the true current dynamics $\vf^*_t$.
+
+The above problem is non-trivial since changes in the dynamics \textit{during} an episode changes the optimal policy. Thus, one would have to optimize for a sequence of optimal policies $\vpi_0\ldots\vpi_{T-1} \in \Pi$. Thus, in a first step, we relax the assumption so that the dynamical system $\vf^*_n$ only varies each episode:
+
+% \bs{The challenge would be that the dynamics are changing within an episode. So time is an input to the problem. Check out time time variant BO papers do it}
+
+\begin{problem}[Finite-horizon RL setting with episodic changes]
+\label{pr:finite_horizon_problem_episodic}
+Building on \cref{def:crl}, \cref{eq:system_eq}, relax \cref{eq:system_eq} so that the dynamical system $\vf^*_n$ only varies each episode. Following the optimal control \citep[OC, c.f.][]{luenberger_oc_1971} problem, the associated finite-horizon RL setting \citep{puterman_markov_1994} is then given as follows.
+\begin{align}
+    J(\vpi^*_n)&=\max_{\vpi \in \Pi} J(\vpi) = \max_{\vpi \in \Pi} \E\left[\sum_{t=0}^{T-1} r_t(\vx_t, \vu_t)\right] \label{eq:finite_horizon_problem_episodic}\\
+    \textrm{s.t. }&\vx_{t+1} = \vf^*_n(\vx_{t}, \vu_{t}) + \vw_t, \quad \vu_t \sim \vpi(\vx_t),\quad \vx_0 = \vx(0), \notag \\
+    & (\vx_t, \vu_t) \in \setX \times \setU \subset \R^{d_x+d_u}.\notag
+\end{align}
+    % \ki{This is bugged. It depends on wether changes occur from episode to episode or also within an episode. So $J(\vpi^*_{0:T-1})$ from the LHS can't be if we only assume $\vf^*$ only changes at each episode.}
+\end{problem}
+where $\vpi^*_n$ denotes the optimal policy at episode $n$ under dynamics $\vf_n^*$. Accordingly, at the beginning of episode $n$, we select and roll out a policy $\vpi_n$ for $T$ steps on the true system.
+
+The above problem is a continual learning problem in the sense that the data distribution and learning objective evolve over time. While in the broadest sense, continual learning is concerned with the \emph{non-stationarity} of the environment, continual RL in a broader sense as outlined in \cref{sec:CL} also considers agents that learn in non-stationary environments \textit{without episodic resets}, continually improving their behaviour in response to changing dynamics, goals, or contexts~\citep{khetarpal_towards_2022} and ultimately aiming for agents that \textit{never stop learning}~\citep{abel_definition_2023}. 
+
+In other words, \ki{case for nonepisodic RL}\footnote{\todo: How many prior works explicitly make use of non-episodic RL? Can't be that many, by the looks of it. \ki{Done in another document.}}. A more natural OC problem can thus be given by an infinite-horizon approach
+
+\begin{problem}[Infinite-horizon discounted setting]
+\label{pr:infinite_horizon_discounted}
+\begin{align}
+    J_\gamma(\vpi^*_{0:T-1})&=\max_{\vpi_0\ldots\vpi_{T-1} \in \Pi} J_{\gamma}(\vpi) = \max_{\vpi \in \Pi} \E_{\vpi} \left[ \sum^{\infty}_{t=0} \gamma^t r(\vx_t, \vu_t) \right] \label{eq:infinite_horizon_discounted}\\
+    \textrm{s.t. }&\vx_{t+1} = \vf^*_t(\vx_{t}, \vu_{t}) + \vw_t, \quad \vu_t \sim \vpi_t(\vx_t),\quad \vx_0 = \vx(0), \notag \\
+    & (\vx_t, \vu_t) \in \setX \times \setU \subset \R^{d_x+d_u}.\notag
+\end{align}
+\end{problem}
+
+\begin{problem}[Average reward, non-episodic setting]
+\label{pr:non-episodic}
+\begin{align}
+    J_{\text{avg}}(\vpi^{*}_{0:T-1}) &= \max_{\vpi_0\ldots\vpi_{T-1} \in \Pi} \limsup_{T \to \infty} \frac{1}{T} \E_{\vpi} \left[ \sum^{T-1}_{t=0} r_t(\vx_t, \vu_t) \right]
+        \label{eq:average_reward}\\
+    \textrm{s.t. }&\vx_{t+1} = \vf^*_t(\vx_{t}, \vu_{t}) + \vw_t, \quad \vu_t \sim \vpi_t(\vx_t), \quad \vx_0 = \vx(0), \notag \\
+    & (\vx_t, \vu_t) \in \setX \times \setU \subset \R^{d_x+d_u}.\notag
+\end{align}
+\end{problem}
+
+% \bs{For next week, summarize the bandit paper and show us how they do it}
+
+To this end, we consider a nonepisodic setting where the system starts at an initial state $x_0=x(0)\in\setX(0)$, but does not reset its position during learning, i.e.~we learn online from a single trajectory. After each step $t$ in the environment, the RL system receives a transition tuple $(\vx_t, \vu_t, \vx_{t+1})$ and updates its policy \textit{and dynamics model} based on the data $\setD_t$ collected thus far during learning. % \ki{In practice, the model and policy would only be updated every few steps, whenever we accumulate a lot of uncertainty.}
+
+\section{Performance Measure}
+
+A common performance measure for RL algorithms is given by the notion of \textbf{regret}.
+In standard RL, static regret compares the learner’s performance to that of the best fixed policy over the entire horizon of $N$ episodes:
+\begin{equation}
+    R_N=\sum_{n=0}^{N-1} J(\vpi^*,\vf^*)-J(\vpi_n,\vf^*)
+    % \mathrm{Regret}(K) = \sum_{t=1}^T \bigl[ J(\vpi^*, \vf^*) - J^*(\vpi_t, \vf^*) \bigr],
+    \label{eq:episodic_static_regret}
+\end{equation}
+which is the difference in performance between the optimal policy $\vpi^*$ and the current policy $\vpi_n$ on the true system $\vf^*$ over the run of the algorithm~\citep{chowdhury_online_2019}.
+
+This notion typically assumes that the environment is stationary, i.e., rewards and transitions do not change. In non-stationary environments, the best policy may change from timestep to timestep. 
+\emph{Dynamic regret} compares the learner to the sequence of optimal policies for each episode:\\
+\ki{This is the relevant regret for the episodic case:}
+\begin{equation}
+    \Rdyn_N = \sum_{n=0}^{N-1} \bigl[ J(\vpi_n^*, \vf_n^*) - J(\vpi_n, \vf_n^*) \bigr],
+    \label{eq:episodic_dynamic_regret}
+\end{equation}
+where $\pi_n^{*}$ is the policy that is optimal at $n$.
+
+So the dynamic regret is a more natural measure of performance for non-stationary problems.
+Dynamic regret always upper-bounds static regret and is strictly harder~\citep{fei_dynamic_2020}:
+\begin{equation}
+    \Rdyn_N \geq R_N.
+\end{equation}
+Note that the dynamics regret notion in \cref{eq:episodic_dynamic_regret} assumes that changes in $\vf_n^*$ only occur per episode $n\in\{1\ldots N\}$ and thus the policy $\vpi^*_n$ only has to adjust per episode. If a distribution shift occurs also during an episode, the dynamic regret becomes:
+\begin{equation}
+    \Rdyn_N = \sum_{n=0}^{N-1} \left[ J_n^* - \sum_{t=0}^{T-1}r_t\Big(\vx_t,\vpi_t\big(\vx(t)\big)\Big) \right],
+    \label{eq:episodic_doubledynamic_regret}
+\end{equation}
+where $J_n^*=\E \left[ \sum_{t=0}^Tr_t \mid \vpi^*_t\right]$ is the expected return at episode $n$ following the optimal policy $\vpi^*_t$ at each time step $t=\{0\ldots T-1\}$.
+
+\Citet{sutton_reinforcement_2018} highlight that many real-world control problems are better modelled as continuing tasks, where interaction does not terminate and learning must occur continually over time. In such settings, the average reward criterion in \cref{eq:average_reward} provides a more natural objective than discounted or episodic returns. For stationary dynamics $\vf^*_t=\vf^*$ static regret up to the time step $T$ is then:
+\begin{equation}
+    R_T = \sum^{T-1}_{t=0} \E\left[
+    J_{\text{avg}}(\vpi^*) - r_t\bigl(\vx_t, \vpi(\vx_t)\bigr)
+    \right].
+    \label{eq:static_average_regret}
+\end{equation}
+
+If however we have changing dynamics as in \cref{eq:system_eq}, it becomes:\\
+\ki{This is the relevant regret for the \emph{non-}episodic case:}
+\begin{equation}
+    \Rdyn_T = \sum^{T-1}_{t=0} \E\left[
+    r_t\bigl(\vx_t, \vpi^*_t(\vx_t)\bigr) - r_t\bigl(\vx_t, \vpi_t(\vx_t)\bigr)
+    \right].
+    \label{eq:dynamic_average_regret}
+\end{equation}
+
+\ki{Mention clearly again that the focus is on episodic changes}
