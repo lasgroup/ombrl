@@ -1,8 +1,10 @@
 from experiments.utils import generate_run_commands, generate_base_command, dict_permutations
 from experiments.mt.changing_envs.results import experiment as exp
 import argparse
+import numpy as np
 
-PROJECT_NAME = 'MT_Jan_05_h18_30_Results_Pendulum_Test_1'
+PROJECT_NAME = 'MT_Jan_14_18_30_Regret_Baseline_Pendulum_Test_1'
+WANDB_OFFLINE = True
 
 entity = 'kiten'
 _applicable_configs = {
@@ -14,7 +16,8 @@ _applicable_configs = {
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'parameter_decay': [0.0, 0.025, 0.05, 0.1],
+    'parameter_decay': [0.0],
+    'fixed_parameter': np.linspace(1.0,5.0,20).tolist(),
     'reset_models': [1],
     'save_video': [0],
     'eval_episodes': [5],
@@ -51,11 +54,11 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'num_imagined_steps': [2, 5],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['stationary'],
+                             'env_param_mode': ['fixed'],
 
                              # replay_buffer_size
                              'replay_buffer_mode': ['reset', 'window'],
-                             'replay_buffer_size': [2_000], # TODO ablate
+                             'replay_buffer_size': [4_000], # TODO ablate
 
                               # resets / perturbations
                              'perturb_policy': [1],
@@ -66,9 +69,9 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'critic_perturb_rate': [-1],
                              'model_perturb_rate': [0., 0.2, 0.5, 1],
 
-                             'policy_reset_period': [10], # TODO ablate
-                             'critic_reset_period': [10], # TODO ablate
-                             'model_reset_period': [10], # TODO ablate
+                             'policy_reset_period': [20], # TODO ablate
+                             'critic_reset_period': [20], # TODO ablate
+                             'model_reset_period': [20], # TODO ablate
                             } | _applicable_configs
 
 _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
@@ -79,10 +82,10 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'sample_model': [0],
                              'updates_per_step': [5],
                              'actor_critic_updates_per_model_update': [5],
-                             'num_imagined_steps': [2, 5],
+                             'num_imagined_steps': [2],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['stationary'],
+                             'env_param_mode': ['fixed'],
 
                               # replay_buffer_size
                              'replay_buffer_mode': ['none'],
@@ -249,11 +252,15 @@ all_flags_combinations = dict_permutations(configs_others | _applicable_configs_
                          + dict_permutations(configs_mountaincar | _applicable_configs_mbmean)\
                          + dict_permutations(configs_humanoid | _applicable_configs_mbmean)
 """
-all_flags_combinations = dict_permutations(configs_pendulum | _applicable_configs_continual)\
-    + dict_permutations(configs_pendulum | _applicable_configs_continual_mean)             
+all_flags_combinations = dict_permutations(configs_pendulum | _applicable_configs_continual_mean)
 
 
 def main(args):
+    if WANDB_OFFLINE: 
+        print("WARNING: wandb set to offline")
+        import os
+        os.system('wandb offline')
+
     command_list = []
     logs_dir = '../'
     if args.mode == 'euler':
@@ -266,9 +273,9 @@ def main(args):
         command_list.append(cmd)
 
     # submit jobs
-    num_hours = 23 if args.long_run else 3
+    num_hours = 23 if args.long_run else 2
     generate_run_commands(command_list, num_cpus=args.num_cpus, num_gpus=args.num_gpus,
-                          mode=args.mode, duration=f'{num_hours}:59:00', prompt=True, mem=2000)
+                          mode=args.mode, duration=f'{num_hours}:29:00', prompt=True, mem=2000)
 
 
 if __name__ == '__main__':

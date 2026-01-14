@@ -85,6 +85,12 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
             env_logs["pendulum_step_change_episode"] = 10
             env_logs["pendulum_max_torque_init"] = 5.0
             env_logs["pendulum_max_torque_final"] = 1.0
+
+        elif env_param_mode == 'fixed':
+            fixed_torque = kwargs.get('fixed_parameter', 3.0)
+            def scheduler_fn(episode_idx: int):
+                return {"max_torque": fixed_torque}
+            env_logs["pendulum_fixed_torque"] = fixed_torque
             
         elif env_param_mode == 'piecewise':
             def scheduler_fn(episode_idx: int):
@@ -161,6 +167,12 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
                 return {"power": float(power_schedule(ep_idx))}
             env_logs["mountaincar_power"] = 0.001
 
+        elif env_param_mode == 'fixed':
+            fixed_power = kwargs.get('fixed_parameter', 0.002)
+            def scheduler_fn(episode_idx: int):
+                return {"power": fixed_power}
+            env_logs["mountaincar_fixed_power"] = fixed_power
+
         elif env_param_mode == 'exponential':
             decay_rate = kwargs.get('parameter_decay', 0.0)
 
@@ -227,6 +239,12 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
             def scheduler_fn(ep_idx: int): return {"gear_scale": min_scale}
             env_logs["cheetah_gear_scale"] = min_scale
 
+        elif env_param_mode == 'fixed':
+            fixed_scale = kwargs.get('fixed_parameter', 1.0)
+            def scheduler_fn(episode_idx: int):
+                return {"gear_scale": fixed_scale}
+            env_logs["cheetah_fixed_gear_scale"] = fixed_scale
+
         elif env_param_mode == 'step':
             def scheduler_fn(episode_idx: int):
                 return {"gear_scale": max_scale if episode_idx < 10 else min_scale}
@@ -287,6 +305,12 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
         elif env_param_mode == 'minimal':
             def scheduler_fn(ep_idx: int): return {"gear_scale": min_scale}
             env_logs["hopper_gear_scale"] = min_scale
+
+        elif env_param_mode == 'fixed':
+            fixed_scale = kwargs.get('fixed_parameter', 1.0)
+            def scheduler_fn(episode_idx: int):
+                return {"gear_scale": fixed_scale}
+            env_logs["hopper_fixed_gear_scale"] = fixed_scale
 
         elif env_param_mode == 'step':
             def scheduler_fn(episode_idx: int):
@@ -361,6 +385,12 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
         elif env_param_mode == 'minimal':
             def scheduler_fn(ep_idx: int): return {"gear_scale": min_scale}
             env_logs["reacher_gear_scale"] = min_scale
+
+        elif env_param_mode == 'fixed':
+            fixed_scale = kwargs.get('fixed_parameter', 1.0)
+            def scheduler_fn(episode_idx: int):
+                return {"gear_scale": fixed_scale}
+            env_logs["reacher_fixed_gear_scale"] = fixed_scale
 
         else:
             raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
