@@ -120,12 +120,29 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
             def scheduler_fn(ep_idx: int):
                 t = max(0, ep_idx - transition_begin)
                 val = jnp.exp(-decay_rate * t) * (max_torque - min_torque) + min_torque
-                
                 return {"max_torque": float(val)}
 
             env_logs.update({
                 "pendulum_max_torque_init": max_torque,
                 "pendulum_max_torque_final": min_torque,
+                "pendulum_torque_decay_rate": decay_rate,
+                "transition_begin": transition_begin
+            })
+
+        elif env_param_mode == 'inverted':
+            decay_rate = kwargs.get('parameter_decay', 0.0)
+            max_torque = 5.0
+            min_torque = 1.0
+            transition_begin = 5
+
+            def scheduler_fn(ep_idx: int):
+                t = max(0, ep_idx - transition_begin)
+                val = jnp.exp(-decay_rate * t) * (min_torque - max_torque) + max_torque
+                return {"max_torque": float(val)}
+
+            env_logs.update({
+                "pendulum_max_torque_init": min_torque,
+                "pendulum_max_torque_final": max_torque,
                 "pendulum_torque_decay_rate": decay_rate,
                 "transition_begin": transition_begin
             })
@@ -264,6 +281,23 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
                 "cheetah_scale_final": min_scale,
                 "cheetah_decay_rate": decay_rate,
             })
+
+        elif env_param_mode == 'inverted':
+            decay_rate = kwargs.get('parameter_decay', 0.007)
+            transition_begin = 400
+
+            def scheduler_fn(ep_idx: int):
+                t = max(0, ep_idx - transition_begin)
+                val = jnp.exp(-decay_rate * t) * (min_scale - max_scale) + max_scale
+                return {"gear_scale": float(val)}
+
+            env_logs.update({
+                "cheetah_scale_init": min_scale,
+                "cheetah_scale_final": max_scale,
+                "cheetah_decay_rate": decay_rate,
+                "transition_begin": transition_begin,
+            })
+
         else:
             raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
         
@@ -318,8 +352,6 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
             env_logs["hopper_step_episode"] = 10
 
         elif env_param_mode == 'exponential':
-            # Slightly faster decay as Hopper experiments often run for fewer episodes 
-            # than Cheetah, but still uses a high transition_begin to allow learning.
             decay_rate = kwargs.get('parameter_decay', 0.01)
             transition_begin = 300 
 
@@ -331,6 +363,22 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
             env_logs.update({
                 "hopper_decay_rate": decay_rate,
                 "hopper_transition_begin": transition_begin
+            })
+
+        elif env_param_mode == 'inverted':
+            decay_rate = kwargs.get('parameter_decay', 0.01)
+            transition_begin = 300
+
+            def scheduler_fn(ep_idx: int):
+                t = max(0, ep_idx - transition_begin)
+                val = jnp.exp(-decay_rate * t) * (min_scale - max_scale) + max_scale
+                return {"gear_scale": float(val)}
+
+            env_logs.update({
+                "cheetah_scale_init": min_scale,
+                "cheetah_scale_final": max_scale,
+                "cheetah_decay_rate": decay_rate,
+                "transition_begin": transition_begin,
             })
 
         else:
