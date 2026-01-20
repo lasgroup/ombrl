@@ -133,6 +133,25 @@ def train(
         init_state=init_state,
     )
         
+    elif '-' in env_name:
+        env = make_env(env_name=env_name, seed=seed,
+                       save_folder=video_train_folder,
+                       recording_image_size=recording_image_size,
+                       **env_kwargs)
+        if init_state is not None:
+            raise NotImplementedError(f'init_state wrapper not implemented for dm_control envs in this version.')
+
+        if episodic_param_scheduler is not None:
+            assert episodic_param_apply_fn is not None
+            env = EpisodicParamWrapper(
+                env,
+                scheduler_fn=episodic_param_scheduler,
+                apply_fn=episodic_param_apply_fn,
+                apply_before_reset=True,
+            )
+        else:
+            env.episode_idx = -1
+        
     else:
         raise NotImplementedError(f'Env {env_name} not implemented in this version.')
 
