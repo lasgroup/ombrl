@@ -1,9 +1,8 @@
 from experiments.utils import generate_run_commands, generate_base_command, dict_permutations
 from experiments.mt.changing_envs.inverted import experiment as exp
 import argparse
-import numpy as np
 
-PROJECT_NAME = 'MT_Jan_15_11_50_Pendulum_inverted_schedule_Test_1'
+PROJECT_NAME = 'MT_Jan_15_16_30_Hopper_inverted_schedule_Test_1'
 WANDB_OFFLINE = True
 
 entity = 'kiten'
@@ -16,8 +15,7 @@ _applicable_configs = {
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'parameter_decay': [0.0, 0.025, 0.05, 0.1],
-    'fixed_parameter': [0],
+    'parameter_decay': [0.0, 0.002, 0.005, 0.007],
     'reset_models': [1],
     'save_video': [0],
     'eval_episodes': [5],
@@ -49,16 +47,16 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'dyn_ent_lr': [3e-4],
                              'lr': [3e-4],
                              'sample_model': [0],
-                             'updates_per_step': [5],
-                             'actor_critic_updates_per_model_update': [5],
-                             'num_imagined_steps': [2, 5],
+                             'updates_per_step': [1],
+                             'actor_critic_updates_per_model_update': [2],
+                             'num_imagined_steps': [2],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
                              'env_param_mode': ['inverted'],
 
                              # replay_buffer_size
                              'replay_buffer_mode': ['reset', 'window'],
-                             'replay_buffer_size': [4_000], # TODO ablate
+                             'replay_buffer_size': [200_000], # TODO ablate
 
                               # resets / perturbations
                              'perturb_policy': [1],
@@ -69,9 +67,9 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'critic_perturb_rate': [-1],
                              'model_perturb_rate': [0.2],
 
-                             'policy_reset_period': [20], # TODO ablate
-                             'critic_reset_period': [20], # TODO ablate
-                             'model_reset_period': [20], # TODO ablate
+                             'policy_reset_period': [200], # TODO ablate
+                             'critic_reset_period': [200], # TODO ablate
+                             'model_reset_period': [200], # TODO ablate
                             } | _applicable_configs
 
 _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
@@ -80,9 +78,9 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'dyn_ent_lr': [3e-4],
                              'lr': [3e-4],
                              'sample_model': [0],
-                             'updates_per_step': [5],
-                             'actor_critic_updates_per_model_update': [5],
-                             'num_imagined_steps': [2,5],
+                             'updates_per_step': [1],
+                             'actor_critic_updates_per_model_update': [2],
+                             'num_imagined_steps': [2],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
                              'env_param_mode': ['inverted'],
@@ -100,9 +98,9 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'critic_perturb_rate': [0],
                              'model_perturb_rate': [0],
  
-                             'policy_reset_period': [999],
-                             'critic_reset_period': [999],
-                             'model_reset_period': [999],
+                             'policy_reset_period': [9999],
+                             'critic_reset_period': [9999],
+                             'model_reset_period': [9999],
                             } | _applicable_configs
 
 _applicable_configs_mbmean = {'alg_name': ['maxinfombsac'],
@@ -212,6 +210,16 @@ configs_gym = {
     'init_state': ["None"],
 }
 
+configs_hopper = {
+    'env_name': ['Hopper-v4'],
+    'max_steps': [500_000],
+    'eval_interval': [20_000],
+    'action_repeat': [2],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
 configs_cheetah = {
     'env_name': ['HalfCheetah-v4'],
     'max_steps': [500_000],
@@ -252,7 +260,8 @@ all_flags_combinations = dict_permutations(configs_others | _applicable_configs_
                          + dict_permutations(configs_mountaincar | _applicable_configs_mbmean)\
                          + dict_permutations(configs_humanoid | _applicable_configs_mbmean)
 """
-all_flags_combinations = dict_permutations(configs_pendulum | _applicable_configs_continual_mean)
+all_flags_combinations = dict_permutations(configs_hopper | _applicable_configs_continual_mean)\
+    + dict_permutations(configs_hopper | _applicable_configs_continual)             
 
 
 def main(args):
@@ -260,7 +269,7 @@ def main(args):
         print("WARNING: wandb set to offline")
         import os
         os.system('wandb offline')
-
+        
     command_list = []
     logs_dir = '../'
     if args.mode == 'euler':
@@ -273,12 +282,9 @@ def main(args):
         command_list.append(cmd)
 
     # submit jobs
-    num_hours = 23 if args.long_run else 2
+    num_hours = 23 if args.long_run else 5
     generate_run_commands(command_list, num_cpus=args.num_cpus, num_gpus=args.num_gpus,
-                          mode=args.mode, duration=f'{num_hours}:29:00', prompt=True, mem=2000)
-    
-    if WANDB_OFFLINE: 
-        os.system('wandb online')
+                          mode=args.mode, duration=f'{num_hours}:59:00', prompt=True, mem=3000)
 
 
 if __name__ == '__main__':

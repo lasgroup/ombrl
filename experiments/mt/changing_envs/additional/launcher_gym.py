@@ -1,10 +1,10 @@
 from experiments.utils import generate_run_commands, generate_base_command, dict_permutations
-from experiments.mt.changing_envs.inverted import experiment as exp
+from experiments.mt.changing_envs.additional import experiment as exp
 import argparse
-import numpy as np
 
-PROJECT_NAME = 'MT_Jan_15_11_50_Pendulum_inverted_schedule_Test_1'
+PROJECT_NAME = 'MT_Jan_20_15_30_Gym_Test_1'
 WANDB_OFFLINE = True
+LONG_EXPERIMENT = False
 
 entity = 'kiten'
 _applicable_configs = {
@@ -16,8 +16,7 @@ _applicable_configs = {
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'parameter_decay': [0.0, 0.025, 0.05, 0.1],
-    'fixed_parameter': [0],
+    'parameter_decay': [0.0],
     'reset_models': [1],
     'save_video': [0],
     'eval_episodes': [5],
@@ -49,16 +48,16 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'dyn_ent_lr': [3e-4],
                              'lr': [3e-4],
                              'sample_model': [0],
-                             'updates_per_step': [5],
-                             'actor_critic_updates_per_model_update': [5],
-                             'num_imagined_steps': [2, 5],
+                             'updates_per_step': [1],
+                             'actor_critic_updates_per_model_update': [1],
+                             'num_imagined_steps': [5],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['inverted'],
+                             'env_param_mode': ['stationary'],
 
                              # replay_buffer_size
                              'replay_buffer_mode': ['reset', 'window'],
-                             'replay_buffer_size': [4_000], # TODO ablate
+                             'replay_buffer_size': [200_000], # TODO ablate
 
                               # resets / perturbations
                              'perturb_policy': [1],
@@ -69,9 +68,9 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'critic_perturb_rate': [-1],
                              'model_perturb_rate': [0.2],
 
-                             'policy_reset_period': [20], # TODO ablate
-                             'critic_reset_period': [20], # TODO ablate
-                             'model_reset_period': [20], # TODO ablate
+                             'policy_reset_period': [200], # TODO ablate
+                             'critic_reset_period': [200], # TODO ablate
+                             'model_reset_period': [200], # TODO ablate
                             } | _applicable_configs
 
 _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
@@ -80,12 +79,12 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'dyn_ent_lr': [3e-4],
                              'lr': [3e-4],
                              'sample_model': [0],
-                             'updates_per_step': [5],
-                             'actor_critic_updates_per_model_update': [5],
-                             'num_imagined_steps': [2,5],
+                             'updates_per_step': [1,2],
+                             'actor_critic_updates_per_model_update': [1],
+                             'num_imagined_steps': [1,2,5],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['inverted'],
+                             'env_param_mode': ['stationary'],
 
                               # replay_buffer_size
                              'replay_buffer_mode': ['none'],
@@ -100,9 +99,9 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'critic_perturb_rate': [0],
                              'model_perturb_rate': [0],
  
-                             'policy_reset_period': [999],
-                             'critic_reset_period': [999],
-                             'model_reset_period': [999],
+                             'policy_reset_period': [9999],
+                             'critic_reset_period': [9999],
+                             'model_reset_period': [9999],
                             } | _applicable_configs
 
 _applicable_configs_mbmean = {'alg_name': ['maxinfombsac'],
@@ -131,56 +130,6 @@ _applicable_configs_mbpets = {'alg_name': ['maxinfombsac'],
                               'use_bronet': [1],
                               } | _applicable_configs
 
-# add other high dim tasks
-configs_humanoid = {
-    'env_name': [  #
-        # 'humanoid-walk',
-        # 'humanoid-stand',
-        # 'humanoid-run',
-        # 'dog-walk',
-        # 'dog-stand',
-        # 'dog-run',
-        # 'quadruped-walk',
-        'quadruped-run',
-    ],
-    'max_steps': [2_500_000],
-    'eval_interval': [10_000],
-    'action_repeat': [2],
-    'num_neurons': [512],
-    'num_hidden_layers': [2],
-}
-
-
-# add other low dim tasks
-configs_cartpole = {
-    'env_name': ['cartpole-swingup_sparse',
-                 # 'reacher-hard',
-                 # 'finger-spin',
-                 # 'walker-run'
-                 ],
-    'max_steps': [200_000],
-    'eval_interval': [10_000],
-    'action_repeat': [2],
-    'action_cost': [0.0], #0.1, 0.25, 0.4],
-    'num_neurons': [256],
-    'num_hidden_layers': [2],
-}
-
-configs_others = {
-    'env_name': [
-        'hopper-hop',
-        # 'acrobot-swingup',
-        # 'finger-turn_hard',
-        # 'walker-run',
-        'cheetah-run',
-    ],
-    'max_steps': [500_000],
-    'eval_interval': [10_000],
-    'action_repeat': [2],
-    'num_neurons': [256],
-    'num_hidden_layers': [2],
-}
-
 configs_mountaincar = {
     'env_name': ['MountainCarContinuous-v0'],
     'max_steps': [25_000],
@@ -200,6 +149,27 @@ configs_pendulum = {
     'num_hidden_layers': [2],
     'init_state': ["3.1415,0.0"],
 }
+
+configs_inverted_pendulum = {
+    'env_name': ['InvertedPendulum-v4'],
+    'max_steps': [50_000],
+    'eval_interval': [500],
+    'action_repeat': [1],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
+configs_inverted_double_pendulum = {
+    'env_name': ['InvertedDoublePendulum-v4'],
+    'max_steps': [150_000],
+    'eval_interval': [2_000],
+    'action_repeat': [1],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
 
 configs_gym = {
     'env_name': ['HalfCheetah-v4',
@@ -222,6 +192,26 @@ configs_cheetah = {
     'init_state': ["None"],
 }
 
+configs_swimmer = {
+    'env_name': ['Swimmer-v4'],
+    'max_steps': [500_000],
+    'eval_interval': [20_000],
+    'action_repeat': [2],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
+configs_ant = {
+    'env_name': ['Ant-v4'],
+    'max_steps': [500_000],
+    'eval_interval': [20_000],
+    'action_repeat': [1],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
 configs_walker = {
     'env_name': ['Walker2d-v4',
                 'Humanoid-v4'],
@@ -232,27 +222,49 @@ configs_walker = {
     'num_hidden_layers': [2],
 }
 
-configs_pusher = {
-    'env_name': ['Pusher-v4',
-                'Reacher-v4'],
-    'max_steps': [250_000],
-    'eval_interval': [1_250],
-    'action_repeat': [2],
+configs_humanoid_standup = {
+    'env_name': ['HumanoidStandup-v4'],
+    'max_steps': [2_000_000],
+    'eval_interval': [20_000],
+    'action_repeat': [1],
     'num_neurons': [256],
     'num_hidden_layers': [2],
+    'init_state': ["None"],
 }
 
 """
-all_flags_combinations = dict_permutations(configs_others | _applicable_configs_mbsac) \
-                         + dict_permutations(configs_cartpole | _applicable_configs_mbsac) \
-                         + dict_permutations(configs_mountaincar | _applicable_configs_mbsac)\
-                         + dict_permutations(configs_humanoid | _applicable_configs_mbsac)\
-                         + dict_permutations(configs_others | _applicable_configs_mbmean) \
-                         + dict_permutations(configs_cartpole | _applicable_configs_mbmean) \
-                         + dict_permutations(configs_mountaincar | _applicable_configs_mbmean)\
-                         + dict_permutations(configs_humanoid | _applicable_configs_mbmean)
+all_flags_combinations = dict_permutations(configs_cheetah | _applicable_configs_continual)\
+    + dict_permutations(configs_cheetah | _applicable_configs_continual_mean)             
+
+all_flags_combinations = dict_permutations(configs_gym | _applicable_configs_continual_mean)
 """
-all_flags_combinations = dict_permutations(configs_pendulum | _applicable_configs_continual_mean)
+
+all_flags_inverted_pendulums = (
+    dict_permutations(configs_inverted_pendulum | _applicable_configs_continual_mean)
+  + dict_permutations(configs_inverted_double_pendulum | _applicable_configs_continual_mean)
+)
+
+all_flags_ant_and_co = (
+    dict_permutations(configs_swimmer | _applicable_configs_continual_mean)
+  + dict_permutations(configs_ant | _applicable_configs_continual_mean)
+)
+
+all_flags_humanoid_and_walker = (
+    dict_permutations(configs_walker | _applicable_configs_continual_mean)
+  + dict_permutations(configs_humanoid_standup | _applicable_configs_continual_mean)
+)
+
+GROUP = "ant"  # "inverted", "ant", "humanoid"
+
+if GROUP == "inverted":
+    all_flags_combinations = all_flags_inverted_pendulums
+elif GROUP == "ant":
+    all_flags_combinations = all_flags_ant_and_co
+elif GROUP == "humanoid":
+    all_flags_combinations = all_flags_humanoid_and_walker
+    LONG_EXPERIMENT = True
+else:
+    raise ValueError(f"Unknown GROUP: {GROUP}")
 
 
 def main(args):
@@ -260,7 +272,7 @@ def main(args):
         print("WARNING: wandb set to offline")
         import os
         os.system('wandb offline')
-
+    
     command_list = []
     logs_dir = '../'
     if args.mode == 'euler':
@@ -273,12 +285,9 @@ def main(args):
         command_list.append(cmd)
 
     # submit jobs
-    num_hours = 23 if args.long_run else 2
+    num_hours = 23 if args.long_run or LONG_EXPERIMENT else 3
     generate_run_commands(command_list, num_cpus=args.num_cpus, num_gpus=args.num_gpus,
-                          mode=args.mode, duration=f'{num_hours}:29:00', prompt=True, mem=2000)
-    
-    if WANDB_OFFLINE: 
-        os.system('wandb online')
+                          mode=args.mode, duration=f'{num_hours}:59:00', prompt=True, mem=3000)
 
 
 if __name__ == '__main__':
