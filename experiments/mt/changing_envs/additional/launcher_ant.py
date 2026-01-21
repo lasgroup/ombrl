@@ -2,9 +2,8 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs.additional import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Jan_21_15_30_Gym_invertedPendulum_all_1'
-
-WANDB_OFFLINE = True
+PROJECT_NAME = 'MT_Jan_21_15_30_Gym_ant_all_1'
+WANDB_OFFLINE = False
 LONG_EXPERIMENT = False
 
 entity = 'kiten'
@@ -17,7 +16,7 @@ _applicable_configs = {
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'parameter_decay': [0.0, 0.1, 0.05, 0.025],
+    'parameter_decay': [0.0, 0.002, 0.005, 0.007],
     'reset_models': [1],
     'save_video': [0],
     'eval_episodes': [5],
@@ -49,7 +48,7 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'dyn_ent_lr': [3e-4],
                              'lr': [3e-4],
                              'sample_model': [0],
-                             'updates_per_step': [2],
+                             'updates_per_step': [1],
                              'actor_critic_updates_per_model_update': [1],
                              'num_imagined_steps': [1],
                              'init_temperature_dyn_entropy': [1.0],
@@ -58,7 +57,7 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
 
                              # replay_buffer_size
                              'replay_buffer_mode': ['reset', 'window'],
-                             'replay_buffer_size': [20_000,#  40_000], # TODO ablate
+                             'replay_buffer_size': [250_000], # TODO ablate
 
                               # resets / perturbations
                              'perturb_policy': [1],
@@ -69,9 +68,9 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'critic_perturb_rate': [-1],
                              'model_perturb_rate': [0.2],
 
-                             'policy_reset_period': [200], # TODO ablate
-                             'critic_reset_period': [200], # TODO ablate
-                             'model_reset_period': [200], # TODO ablate
+                             'policy_reset_period': [250], # TODO ablate
+                             'critic_reset_period': [250], # TODO ablate
+                             'model_reset_period': [250], # TODO ablate
                             } | _applicable_configs
 
 _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
@@ -80,7 +79,7 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'dyn_ent_lr': [3e-4],
                              'lr': [3e-4],
                              'sample_model': [0],
-                             'updates_per_step': [2],
+                             'updates_per_step': [1],
                              'actor_critic_updates_per_model_update': [1],
                              'num_imagined_steps': [1],
                              'init_temperature_dyn_entropy': [1.0],
@@ -153,8 +152,80 @@ configs_pendulum = {
 
 configs_inverted_pendulum = {
     'env_name': ['InvertedPendulum-v4'],
+    'max_steps': [50_000],
+    'eval_interval': [500],
+    'action_repeat': [1],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
+configs_inverted_double_pendulum = {
+    'env_name': ['InvertedDoublePendulum-v4'],
     'max_steps': [150_000],
     'eval_interval': [2_000],
+    'action_repeat': [1],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
+
+configs_gym = {
+    'env_name': ['HalfCheetah-v4',
+                 'Hopper-v4'],
+    'max_steps': [500_000],
+    'eval_interval': [20_000],
+    'action_repeat': [2],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
+configs_cheetah = {
+    'env_name': ['HalfCheetah-v4'],
+    'max_steps': [500_000],
+    'eval_interval': [20_000],
+    'action_repeat': [2],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
+configs_swimmer = {
+    'env_name': ['Swimmer-v4'],
+    'max_steps': [500_000],
+    'eval_interval': [20_000],
+    'action_repeat': [2],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
+configs_ant = {
+    'env_name': ['Ant-v4'],
+    'max_steps': [1_000_000],
+    'eval_interval': [40_000],
+    'action_repeat': [1],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+    'init_state': ["None"],
+}
+
+configs_walker = {
+    'env_name': ['Walker2d-v4',
+                'Humanoid-v4'],
+    'max_steps': [2_000_000],
+    'eval_interval': [10_000],
+    'action_repeat': [2],
+    'num_neurons': [256],
+    'num_hidden_layers': [2],
+}
+
+configs_humanoid_standup = {
+    'env_name': ['HumanoidStandup-v4'],
+    'max_steps': [2_000_000],
+    'eval_interval': [20_000],
     'action_repeat': [1],
     'num_neurons': [256],
     'num_hidden_layers': [2],
@@ -168,16 +239,46 @@ all_flags_combinations = dict_permutations(configs_cheetah | _applicable_configs
 all_flags_combinations = dict_permutations(configs_gym | _applicable_configs_continual_mean)
 """
 
-all_flags_combinations = (
+all_flags_inverted_pendulums = (
     dict_permutations(configs_inverted_pendulum | _applicable_configs_continual_mean)
-    + dict_permutations(configs_inverted_pendulum | _applicable_configs_continual)
-  )
+  + dict_permutations(configs_inverted_double_pendulum | _applicable_configs_continual_mean)
+)
+
+all_flags_ant_and_co = (
+    dict_permutations(configs_ant | _applicable_configs_continual)
+  + dict_permutations(configs_ant | _applicable_configs_continual_mean)
+)
+
+all_flags_humanoid_and_walker = (
+    dict_permutations(configs_walker | _applicable_configs_continual_mean)
+  + dict_permutations(configs_humanoid_standup | _applicable_configs_continual_mean)
+)
+
+GROUP = "ant"  # "inverted", "ant", "humanoid"
+
+if GROUP == "inverted":
+    all_flags_combinations = all_flags_inverted_pendulums
+elif GROUP == "ant":
+    all_flags_combinations = all_flags_ant_and_co
+    LONG_EXPERIMENT = True
+
+
+elif GROUP == "humanoid":
+    all_flags_combinations = all_flags_humanoid_and_walker
+    LONG_EXPERIMENT = True
+else:
+    raise ValueError(f"Unknown GROUP: {GROUP}")
+
 
 def main(args):
     if WANDB_OFFLINE: 
         print("WARNING: wandb set to offline")
         import os
         os.system('wandb offline')
+    else:
+        print("WARNING: wandb set to online")
+        import os
+        os.system('wandb online')
     
     command_list = []
     logs_dir = '../'
@@ -193,7 +294,7 @@ def main(args):
     # submit jobs
     num_hours = 23 if args.long_run or LONG_EXPERIMENT else 3
     generate_run_commands(command_list, num_cpus=args.num_cpus, num_gpus=args.num_gpus,
-                          mode=args.mode, duration=f'{num_hours}:59:00', prompt=True, mem=2000)
+                          mode=args.mode, duration=f'{num_hours}:59:00', prompt=True, mem=3000)
 
 
 if __name__ == '__main__':
