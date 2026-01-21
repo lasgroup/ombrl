@@ -15,7 +15,7 @@ from ombrl.agents import MaxInfoOmbrlLearner, ContinualMaxInfoLearner
 from jaxrl.datasets import ReplayBuffer
 from ombrl.utils.datasets import ResetReplayBuffer
 from maxinforl_jax.datasets import NstepReplayBuffer
-from ombrl.envs.wrappers import InitWrapper, EpisodicParamWrapper, EvalEnvFactory
+from ombrl.envs.wrappers import InitWrapper, NoTerminationWrapper, EpisodicParamWrapper, EvalEnvFactory
 from jaxrl.evaluation import evaluate
 from jaxrl.utils import make_env
 from ombrl.envs.build_utils import make_hopper_env
@@ -108,6 +108,12 @@ def train(
         
         if init_state is not None:
             env = InitWrapper(env, init_state=init_state)
+
+        if env_name in [
+            "InvertedPendulum-v4",
+            "InvertedDoublePendulum-v4",
+        ]:
+            env = NoTerminationWrapper(env)
 
         if episodic_param_scheduler is not None:
             assert episodic_param_apply_fn is not None

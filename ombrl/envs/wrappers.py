@@ -65,6 +65,12 @@ class InitWrapper(Wrapper):
         return np.asarray(base_env.state, dtype=np.float32)
 
 
+class NoTerminationWrapper(gym.Wrapper):
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        return obs, reward, False, truncated, info
+
+
 class EpisodicParamWrapper(gym.Wrapper):
     """
     A generic wrapper that updates environment parameters at the start of
