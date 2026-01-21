@@ -66,8 +66,10 @@ class InitWrapper(Wrapper):
 
 
 class NoTerminationWrapper(gym.Wrapper):
-    def __init__(self, env_name: str):
+    def __init__(self, env: gym.Env, env_name: str):
+        super().__init__(env)
         self.env_name = env_name
+
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
         if terminated:
