@@ -68,6 +68,8 @@ class InitWrapper(Wrapper):
 class NoTerminationWrapper(gym.Wrapper):
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
+        if terminated:
+            reward = 0.0
         return obs, reward, False, truncated, info
 
 

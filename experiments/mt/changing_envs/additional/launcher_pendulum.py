@@ -2,7 +2,7 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs.additional import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Jan_21_10_30_Gym_inverted_Test_2_NoTermination'
+PROJECT_NAME = 'MT_Jan_21_10_45_Gym_inverted_Test_3_NoTermination'
 
 WANDB_OFFLINE = False
 LONG_EXPERIMENT = False
@@ -293,7 +293,7 @@ def main(args):
     # submit jobs
     num_hours = 23 if args.long_run or LONG_EXPERIMENT else 3
     generate_run_commands(command_list, num_cpus=args.num_cpus, num_gpus=args.num_gpus,
-                          mode=args.mode, duration=f'{num_hours}:59:00', prompt=True, mem=3000)
+                          mode=args.mode, duration=f'{num_hours}:59:00', prompt=True, mem=2000)
 
 
 if __name__ == '__main__':

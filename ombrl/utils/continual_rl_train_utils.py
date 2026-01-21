@@ -112,6 +112,7 @@ def train(
         if env_name in [
             "InvertedPendulum-v4",
             "InvertedDoublePendulum-v4",
+            "Ant-v4",
         ]:
             env = NoTerminationWrapper(env)
 
