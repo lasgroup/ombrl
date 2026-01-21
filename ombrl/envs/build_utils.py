@@ -305,7 +305,7 @@ def make_nonterminating_env(env_name: str,
 
     env = wrappers.ActionCost(env, action_cost=action_cost)
 
-    env = NoTerminationWrapper(env)
+    env = NoTerminationWrapper(env, env_name=env_name)
 
     if add_episode_monitor:
         env = wrappers.EpisodeMonitor(env)

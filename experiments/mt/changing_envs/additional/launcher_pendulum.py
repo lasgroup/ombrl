@@ -2,7 +2,7 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs.additional import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Jan_21_10_45_Gym_inverted_Test_3_NoTermination'
+PROJECT_NAME = 'MT_Jan_21_11_55_Gym_inverted_Test_5_NoTermination'
 
 WANDB_OFFLINE = False
 LONG_EXPERIMENT = False

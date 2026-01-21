@@ -66,10 +66,15 @@ class InitWrapper(Wrapper):
 
 
 class NoTerminationWrapper(gym.Wrapper):
+    def __init__(self, env_name: str):
+        self.env_name = env_name
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
         if terminated:
-            reward = 0.0
+            if self.env_name == 'InvertedDoublePendulum-v4':
+                reward -= 10.0
+            else:
+                reward = 0.0
         return obs, reward, False, truncated, info
 
 
