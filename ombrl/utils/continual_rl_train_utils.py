@@ -67,6 +67,40 @@ def train(
         video_train_folder = None
         video_eval_folder = None
 
+    if env_name == 'Walker2d-v4':
+        # TODO: terminate when unhealthy only for training env?
+        env = make_hopper_env(env_name=env_name, seed=seed,
+                       save_folder=video_train_folder,
+                       recording_image_size=recording_image_size,
+                       **env_kwargs)
+        
+        if init_state is not None:
+            env = InitWrapper(env, init_state=init_state)
+
+        if episodic_param_scheduler is not None:
+            assert episodic_param_apply_fn is not None
+            env = EpisodicParamWrapper(
+                env,
+                scheduler_fn=episodic_param_scheduler,
+                apply_fn=episodic_param_apply_fn,
+                apply_before_reset=True,
+            )
+        else:
+            env.episode_idx = -1  # for logging purposes
+        
+        eval_env_factory = EvalEnvFactory(
+            make_env_fn=lambda folder_name: make_env(
+            env_name=env_name,
+            seed=seed + 42,
+            save_folder=folder_name,
+            episode_trigger=eval_episode_trigger,
+            recording_image_size=recording_image_size,
+            **env_kwargs,
+        ),
+        apply_fn=episodic_param_apply_fn,
+        init_state=init_state,
+    )
+        
     if env_name == 'Hopper-v4':
         env = make_hopper_env(env_name=env_name, seed=seed,
                        save_folder=video_train_folder,

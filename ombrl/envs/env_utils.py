@@ -618,6 +618,87 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
         else:
             raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
 
+    elif env_name == 'Walker2d-v4':
+        base_gears = jnp.array([100., 100., 100., 100., 100., 100.])
+
+        def apply_fn(base_env: gym.Env, params: dict):
+            new_gears = base_gears * params["gear_scale"]
+            base_env.unwrapped.model.actuator_gear[:, 0] = new_gears
+
+        env_logs = {}
+        max_scale = 1.0
+        min_scale = 0.3
+        transition_begin = 1500
+
+        if env_param_mode == 'exponential':
+            decay_rate = kwargs.get('parameter_decay', 0.0)
+
+            def scheduler_fn(ep_idx: int):
+                t = max(0, ep_idx - transition_begin)
+                val = jnp.exp(-decay_rate * t) * (max_scale - min_scale) + min_scale
+                return {"gear_scale": float(val)}
+
+            env_logs.update({
+                "walker_scale_init": max_scale,
+                "walker_scale_final": min_scale,
+                "walker_decay_rate": decay_rate,
+                "walker_transition_begin": transition_begin,
+            })
+
+        elif env_param_mode == 'fixed':
+            fixed_scale = kwargs.get('fixed_parameter', 1.0)
+
+            def scheduler_fn(ep_idx: int):
+                return {"gear_scale": fixed_scale}
+
+            env_logs["walker_fixed_gear_scale"] = fixed_scale
+
+        else:
+            raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
+
+    elif env_name == 'HumanoidStandup-v4':
+        # Baseline actuator gears (from MuJoCo model)
+        base_gears = jnp.array([
+            100., 100., 100., 100., 100.,
+            300., 200., 100., 100.,
+            300., 200.,
+            25., 25., 25., 25., 25., 25.
+        ])
+
+        def apply_fn(base_env: gym.Env, params: dict):
+            new_gears = base_gears * params["gear_scale"]
+            base_env.unwrapped.model.actuator_gear[:, 0] = new_gears
+
+        env_logs = {}
+        max_scale = 1.0
+        min_scale = 0.3
+        transition_begin = 300
+
+        if env_param_mode == 'exponential':
+            decay_rate = kwargs.get('parameter_decay', 0.0)
+
+            def scheduler_fn(ep_idx: int):
+                t = max(0, ep_idx - transition_begin)
+                val = jnp.exp(-decay_rate * t) * (max_scale - min_scale) + min_scale
+                return {"gear_scale": float(val)}
+
+            env_logs.update({
+                "humanoid_scale_init": max_scale,
+                "humanoid_scale_final": min_scale,
+                "humanoid_decay_rate": decay_rate,
+                "humanoid_transition_begin": transition_begin,
+            })
+
+        elif env_param_mode == 'fixed':
+            fixed_scale = kwargs.get('fixed_parameter', 1.0)
+
+            def scheduler_fn(ep_idx: int):
+                return {"gear_scale": fixed_scale}
+
+            env_logs["humanoid_fixed_gear_scale"] = fixed_scale
+
+        else:
+            raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
 
     else:
         raise ValueError(f"Unknown env_name: {env_name}")
@@ -656,11 +737,11 @@ def main():
 """
 def main():
     import matplotlib.pyplot as plt
-    env_name = "InvertedDoublePendulum-v4"
+    env_name = "HumanoidStandup-v4"
     env_param_mode = "exponential"
     
     # Increase episodes to see the full decay curve
-    num_episodes = 600
+    num_episodes = 1000
     # Use a range of alphas to see how fast the car gets "weaker"
     alphas = [0.0, 0.002, 0.005, 0.007] 
 
