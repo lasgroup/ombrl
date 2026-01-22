@@ -101,7 +101,7 @@ def train(
         init_state=init_state,
     )
         
-    if env_name == 'Hopper-v4':
+    elif env_name == 'Hopper-v4':
         env = make_hopper_env(env_name=env_name, seed=seed,
                        save_folder=video_train_folder,
                        recording_image_size=recording_image_size,
