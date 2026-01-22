@@ -129,6 +129,35 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
                 "transition_begin": transition_begin
             })
 
+        elif env_param_mode == 'second_order':
+            max_torque = 5.0
+            min_torque = 1.0
+            mid_torque = 3.0
+
+            transition_begin = 5
+            scale = 5.0
+            decay = 0.1
+            period = 5
+            omega = 2 * jnp.pi / period
+
+            def scheduler_fn(ep_idx: int):
+                x = max(0, ep_idx - transition_begin) / scale
+                val = (
+                    jnp.exp(-decay * x)
+                    * (max_torque - mid_torque)
+                    * jnp.cos(omega * x)
+                    + mid_torque
+                )
+                return {"max_torque": float(val)}
+
+            env_logs.update({
+                "pendulum_max_torque_init": max_torque,
+                "pendulum_mid_torque": mid_torque,
+                "pendulum_decay": decay,
+                "pendulum_period": period,
+                "transition_begin": transition_begin,
+            })
+
         elif env_param_mode == 'inverted':
             decay_rate = kwargs.get('parameter_decay', 0.0)
             max_torque = 5.0
@@ -737,13 +766,13 @@ def main():
 """
 def main():
     import matplotlib.pyplot as plt
-    env_name = "HumanoidStandup-v4"
-    env_param_mode = "exponential"
+    env_name = "Pendulum-v1"
+    env_param_mode = "second_order"
     
     # Increase episodes to see the full decay curve
-    num_episodes = 1000
+    num_episodes = int(14000/200)
     # Use a range of alphas to see how fast the car gets "weaker"
-    alphas = [0.0, 0.002, 0.005, 0.007] 
+    alphas = [0.0] 
 
     plt.figure(figsize=(10, 6))
 
@@ -756,7 +785,7 @@ def main():
 
         episodes = range(num_episodes)
         # Change "torques" to "powers" and access the correct dictionary key
-        powers = [scheduler_fn(ep)["gear_scale"] for ep in episodes]
+        powers = [scheduler_fn(ep)["max_torque"] for ep in episodes]
         
         # Plotting against episode index
         plt.plot(episodes, powers, label=f'α = {alpha}')
