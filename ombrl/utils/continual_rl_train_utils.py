@@ -67,7 +67,7 @@ def train(
         video_train_folder = None
         video_eval_folder = None
 
-    if env_name == 'Walker2d-v4':
+    if env_name == 'Walker2d-v4' or env_name == 'Humanoid-v4':
         # TODO: terminate when unhealthy only for training env?
         env = make_hopper_env(env_name=env_name, seed=seed,
                        save_folder=video_train_folder,

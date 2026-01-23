@@ -729,6 +729,50 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
         else:
             raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
 
+    elif env_name == 'Humanoid-v4':
+        # Baseline actuator gears (from MuJoCo model)
+        base_gears = jnp.array([
+            100., 100., 100., 100., 100.,
+            300., 200., 100., 100.,
+            300., 200.,
+            25., 25., 25., 25., 25., 25.
+        ])
+
+        def apply_fn(base_env: gym.Env, params: dict):
+            new_gears = base_gears * params["gear_scale"]
+            base_env.unwrapped.model.actuator_gear[:, 0] = new_gears
+
+        env_logs = {}
+        max_scale = 1.0
+        min_scale = 0.3
+        transition_begin = 1000
+
+        if env_param_mode == 'exponential':
+            decay_rate = kwargs.get('parameter_decay', 0.0)
+
+            def scheduler_fn(ep_idx: int):
+                t = max(0, ep_idx - transition_begin)
+                val = jnp.exp(-decay_rate * t) * (max_scale - min_scale) + min_scale
+                return {"gear_scale": float(val)}
+
+            env_logs.update({
+                "humanoid_scale_init": max_scale,
+                "humanoid_scale_final": min_scale,
+                "humanoid_decay_rate": decay_rate,
+                "humanoid_transition_begin": transition_begin,
+            })
+
+        elif env_param_mode == 'fixed':
+            fixed_scale = kwargs.get('fixed_parameter', 1.0)
+
+            def scheduler_fn(ep_idx: int):
+                return {"gear_scale": fixed_scale}
+
+            env_logs["humanoid_fixed_gear_scale"] = fixed_scale
+
+        else:
+            raise ValueError(f"env_param_mode={env_param_mode} not supported for {env_name}")
+
     else:
         raise ValueError(f"Unknown env_name: {env_name}")
     
@@ -766,13 +810,13 @@ def main():
 """
 def main():
     import matplotlib.pyplot as plt
-    env_name = "Pendulum-v1"
-    env_param_mode = "second_order"
+    env_name = "Humanoid-v4"
+    env_param_mode = "exponential"
     
     # Increase episodes to see the full decay curve
-    num_episodes = int(14000/200)
+    num_episodes = 4000
     # Use a range of alphas to see how fast the car gets "weaker"
-    alphas = [0.0] 
+    alphas = [0.0, 0.005, 0.001, 0.0005] 
 
     plt.figure(figsize=(10, 6))
 
@@ -785,7 +829,7 @@ def main():
 
         episodes = range(num_episodes)
         # Change "torques" to "powers" and access the correct dictionary key
-        powers = [scheduler_fn(ep)["max_torque"] for ep in episodes]
+        powers = [scheduler_fn(ep)["gear_scale"] for ep in episodes]
         
         # Plotting against episode index
         plt.plot(episodes, powers, label=f'α = {alpha}')
