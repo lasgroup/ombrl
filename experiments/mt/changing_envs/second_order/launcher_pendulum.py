@@ -1,9 +1,9 @@
 from experiments.utils import generate_run_commands, generate_base_command, dict_permutations
-from experiments.mt.changing_envs.results import experiment as exp
+from experiments.mt.changing_envs.second_order import experiment as exp
 import argparse
 import numpy as np
 
-PROJECT_NAME = 'MT_Jan_22_17_00_Pendulum_2nd_order_Test_1'
+PROJECT_NAME = 'MT_Jan_22_23_55_Pendulum_2nd_order_Test_3'
 WANDB_OFFLINE = True
 
 entity = 'kiten'
@@ -54,7 +54,7 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'num_imagined_steps': [2, 5],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['second_order'],
+                             'env_param_mode': ['second_order', 'second_order_2', 'second_order_3'],
 
                              # replay_buffer_size
                              'replay_buffer_mode': ['reset', 'window'],
@@ -86,7 +86,7 @@ _applicable_configs_continual_fast = {'alg_name': ['continualmaxinfo'],
                              'num_imagined_steps': [2, 5],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['second_order'],
+                             'env_param_mode': ['second_order', 'second_order_2', 'second_order_3'],
 
                              # replay_buffer_size
                              'replay_buffer_mode': ['reset', 'window'],
@@ -118,7 +118,7 @@ _applicable_configs_continual_slow = {'alg_name': ['continualmaxinfo'],
                              'num_imagined_steps': [2, 5],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['fixed'],
+                             'env_param_mode': ['second_order', 'second_order_2', 'second_order_3'],
 
                              # replay_buffer_size
                              'replay_buffer_mode': ['reset', 'window'],
@@ -149,7 +149,7 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'num_imagined_steps': [2],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
-                             'env_param_mode': ['fixed'],
+                             'env_param_mode': ['second_order', 'second_order_2', 'second_order_3'],
 
                               # replay_buffer_size
                              'replay_buffer_mode': ['none'],

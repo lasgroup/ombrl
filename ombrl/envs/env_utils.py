@@ -158,6 +158,58 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
                 "transition_begin": transition_begin,
             })
 
+        elif env_param_mode == 'second_order_2':
+            max_torque = 5.0
+            min_torque = 1.0
+            mid_torque = 2.0
+
+            transition_begin = 5
+            decay = 0.239
+            a = 3
+            b = 3.4
+
+            def scheduler_fn(ep_idx: int):
+                x = max(0, ep_idx - transition_begin)
+                val = (
+                    jnp.exp(-decay/b * x)
+                    * (a)
+                    * jnp.cos(2*jnp.pi/10 * x/b)
+                    + mid_torque
+                )
+                return {"max_torque": float(val)}
+
+            env_logs.update({
+                "pendulum_mid_torque": mid_torque,
+                "pendulum_decay": decay,
+                "transition_begin": transition_begin,
+            })
+
+        elif env_param_mode == 'second_order_3':
+            max_torque = 5.0
+            min_torque = 1.0
+            mid_torque = 2.0
+
+            transition_begin = 5
+            decay = 0.089
+            a = 3
+            b = 1.61
+
+            def scheduler_fn(ep_idx: int):
+                x = max(0, ep_idx - transition_begin)
+                val = (
+                    jnp.exp(-decay/b * x)
+                    * (a)
+                    * jnp.cos(2*jnp.pi/10 * x/b)
+                    + mid_torque
+                )
+                return {"max_torque": float(val)}
+
+            env_logs.update({
+                "pendulum_mid_torque": mid_torque,
+                "pendulum_decay": decay,
+                "transition_begin": transition_begin,
+            })
+
         elif env_param_mode == 'inverted':
             decay_rate = kwargs.get('parameter_decay', 0.0)
             max_torque = 5.0
@@ -810,13 +862,13 @@ def main():
 """
 def main():
     import matplotlib.pyplot as plt
-    env_name = "Humanoid-v4"
-    env_param_mode = "exponential"
+    env_name = "Pendulum-v1"
+    env_param_mode = "second_order_3"
     
     # Increase episodes to see the full decay curve
-    num_episodes = 4000
+    num_episodes = 70
     # Use a range of alphas to see how fast the car gets "weaker"
-    alphas = [0.0, 0.005, 0.001, 0.0005] 
+    alphas = [0.0] 
 
     plt.figure(figsize=(10, 6))
 
@@ -829,7 +881,7 @@ def main():
 
         episodes = range(num_episodes)
         # Change "torques" to "powers" and access the correct dictionary key
-        powers = [scheduler_fn(ep)["gear_scale"] for ep in episodes]
+        powers = [scheduler_fn(ep)["max_torque"] for ep in episodes]
         
         # Plotting against episode index
         plt.plot(episodes, powers, label=f'α = {alpha}')
