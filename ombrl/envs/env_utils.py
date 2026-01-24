@@ -134,20 +134,33 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
             min_torque = 1.0
             mid_torque = 3.0
 
-            transition_begin = 5
+            transition_begin = 20
             scale = 5.0
             decay = 0.1
             period = 5
             omega = 2 * jnp.pi / period
 
             def scheduler_fn(ep_idx: int):
-                x = max(0, ep_idx - transition_begin) / scale
-                val = (
-                    jnp.exp(-decay * x)
-                    * (max_torque - mid_torque)
-                    * jnp.cos(omega * x)
-                    + mid_torque
-                )
+                # Time step
+                x = jnp.maximum(0, ep_idx - transition_begin)
+                
+                # 1. Define the Period (e.g., 16 steps for a longer cycle)
+                period = 16.0
+                omega = (2 * jnp.pi) / period
+                
+                # 2. Define Envelopes (Linear decay/growth to meet at 1.25)
+                # Peak goes 5.0 -> 1.25
+                p_x = jnp.maximum(1.1, 5.0 - (3.75 / 65.0) * x)
+                # Trough goes 1.0 -> 1.25
+                t_x = jnp.minimum(1.5, 1.0 + (0.25 / 65.0) * x)
+                
+                # 3. Derive Equilibrium (Midpoint) and Amplitude (Half-width)
+                mid_torque = (p_x + t_x) / 2.0
+                amplitude = (p_x - t_x) / 2.0
+                
+                # 4. Oscillator
+                val = amplitude * jnp.cos(omega * x) + mid_torque
+                
                 return {"max_torque": float(val)}
 
             env_logs.update({
@@ -163,7 +176,7 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
             min_torque = 1.0
             mid_torque = 2.0
 
-            transition_begin = 5
+            transition_begin = 20
             decay = 0.239
             a = 3
             b = 3.4
@@ -189,7 +202,7 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
             min_torque = 1.0
             mid_torque = 2.0
 
-            transition_begin = 5
+            transition_begin = 20
             decay = 0.089
             a = 3
             b = 1.61
@@ -862,13 +875,13 @@ def main():
 """
 def main():
     import matplotlib.pyplot as plt
-    env_name = "Humanoid-v4"
-    env_param_mode = "exponential"
+    env_name = "Pendulum-v1"
+    env_param_mode = "second_order_3"
     
     # Increase episodes to see the full decay curve
-    num_episodes = 8000
+    num_episodes = 100
     # Use a range of alphas to see how fast the car gets "weaker"
-    alphas = [0.0, 0.005, 0.001, 0.0005] 
+    alphas = [0.0] 
 
     plt.figure(figsize=(10, 6))
 

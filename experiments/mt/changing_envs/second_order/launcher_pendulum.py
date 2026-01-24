@@ -3,7 +3,7 @@ from experiments.mt.changing_envs.second_order import experiment as exp
 import argparse
 import numpy as np
 
-PROJECT_NAME = 'MT_Jan_22_23_55_Pendulum_2nd_order_Test_3'
+PROJECT_NAME = 'MT_Jan_23_23_55_Pendulum_2nd_order_Test_5'
 WANDB_OFFLINE = True
 
 entity = 'kiten'
@@ -74,39 +74,6 @@ _applicable_configs_continual = {'alg_name': ['continualmaxinfo'],
                              'model_reset_period': [20], # TODO ablate
                             } | _applicable_configs
 
-
-_applicable_configs_continual_fast = {'alg_name': ['continualmaxinfo'],
-                             'exp_hash': ['continual'],
-                             'ens_lr': [3e-4],
-                             'dyn_ent_lr': [3e-4],
-                             'lr': [3e-4],
-                             'sample_model': [0],
-                             'updates_per_step': [5],
-                             'actor_critic_updates_per_model_update': [5],
-                             'num_imagined_steps': [2, 5],
-                             'init_temperature_dyn_entropy': [1.0],
-                             'use_bronet': [1],
-                             'env_param_mode': ['second_order', 'second_order_2', 'second_order_3'],
-
-                             # replay_buffer_size
-                             'replay_buffer_mode': ['reset', 'window'],
-                             'replay_buffer_size': [1000], # TODO ablate
-
-                              # resets / perturbations
-                             'perturb_policy': [1],
-                             'perturb_critic': [1],
-                             'perturb_model': [1],
- 
-                             'policy_perturb_rate': [0.2],
-                             'critic_perturb_rate': [-1],
-                             'model_perturb_rate': [0.2],
-
-                             'policy_reset_period': [5], # TODO ablate
-                             'critic_reset_period': [5], # TODO ablate
-                             'model_reset_period': [5], # TODO ablate
-                            } | _applicable_configs
-
-
 _applicable_configs_continual_slow = {'alg_name': ['continualmaxinfo'],
                              'exp_hash': ['continual'],
                              'ens_lr': [3e-4],
@@ -146,7 +113,7 @@ _applicable_configs_continual_mean = {'alg_name': ['continualmaxinfo'],
                              'sample_model': [0],
                              'updates_per_step': [5],
                              'actor_critic_updates_per_model_update': [5],
-                             'num_imagined_steps': [2],
+                             'num_imagined_steps': [2,5],
                              'init_temperature_dyn_entropy': [1.0],
                              'use_bronet': [1],
                              'env_param_mode': ['second_order', 'second_order_2', 'second_order_3'],
@@ -318,7 +285,6 @@ all_flags_combinations = dict_permutations(configs_others | _applicable_configs_
 """
 all_flags_combinations = dict_permutations(configs_pendulum | _applicable_configs_continual_mean)\
     + dict_permutations(configs_pendulum | _applicable_configs_continual)\
-    + dict_permutations(configs_pendulum | _applicable_configs_continual_fast)\
     + dict_permutations(configs_pendulum | _applicable_configs_continual_slow)
 
 
@@ -340,9 +306,9 @@ def main(args):
         command_list.append(cmd)
 
     # submit jobs
-    num_hours = 23 if args.long_run else 2
+    num_hours = 23 if args.long_run else 3
     generate_run_commands(command_list, num_cpus=args.num_cpus, num_gpus=args.num_gpus,
-                          mode=args.mode, duration=f'{num_hours}:29:00', prompt=True, mem=2000)
+                          mode=args.mode, duration=f'{num_hours}:29:00', prompt=True, mem=2500)
 
 
 if __name__ == '__main__':
