@@ -144,6 +144,89 @@ class EpisodicParamWrapper(gym.Wrapper):
         return dict(self.current_params)
 
 
+class StepParamWrapper(gym.Wrapper):
+    """
+    A generic wrapper that updates environment parameters based on the
+    number of environment interaction steps.
+
+    Args:
+        env: Base Gym environment
+        scheduler_fn: Callable mapping step_idx -> dict of parameters
+        apply_fn: Callable (env, params) that applies parameters to env
+        apply_every: Scheduler resolution in env steps
+        apply_before_reset: Whether parameters affect the reset distribution
+    """
+
+    def __init__(
+        self,
+        env: gym.Env,
+        scheduler_fn: Callable[[int], dict[str, Any]],
+        apply_fn: Callable[[gym.Env, dict[str, Any]], None],
+        *,
+        apply_every: int = 1000,
+        apply_before_reset: bool = True,
+    ):
+        super().__init__(env)
+
+        assert apply_every > 0, "apply_every must be positive"
+
+        self.scheduler_fn = scheduler_fn
+        self.apply_fn = apply_fn
+        self.apply_every = apply_every
+        self.apply_before_reset = apply_before_reset
+
+        self.step_idx = 0
+        self.episode_idx = -1
+        self.last_schedule_step = -1
+        self.current_params: dict[str, Any] = {}
+
+    def _schedule_if_needed(self):
+        """Apply parameters if step condition is met."""
+        if (
+            self.last_schedule_step < 0
+            or (self.step_idx - self.last_schedule_step) >= self.apply_every
+        ):
+            self.current_params = dict(self.scheduler_fn(self.step_idx))
+            self.last_schedule_step = self.step_idx
+            self.episode_idx += 1
+
+        base_env = self.env.unwrapped
+        self.apply_fn(base_env, self.current_params)
+
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None, ):
+        if self.apply_before_reset:
+            self._schedule_if_needed()
+
+        obs, info = self.env.reset(seed=seed, options=options)
+
+        if not self.apply_before_reset:
+            self._schedule_if_needed()
+
+        info = dict(info)
+        info.update(self.current_params)
+        info["step_idx"] = self.step_idx
+        info["episode_idx"] = self.episode_idx
+        return obs, info
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+
+        self.step_idx += 1
+        info = dict(info)
+        info.update(self.current_params)
+        info["step_idx"] = self.step_idx
+        info["episode_idx"] = self.episode_idx
+        return obs, reward, terminated, truncated, info
+
+    def get_current_params(self) -> dict:
+        if not self.current_params:
+            raise RuntimeError(
+                "Parameters not initialized yet. "
+                "Call reset() at least once before evaluation."
+            )
+        return dict(self.current_params)
+
+
 class EvalEnvFactory:
     """
     Factory that creates frozen evaluation environments

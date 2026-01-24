@@ -810,7 +810,7 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
         env_logs = {}
         max_scale = 1.0
         min_scale = 0.3
-        transition_begin = kwargs.get('fixed_parameter', 5500)
+        transition_begin = 2_000_000
 
         if env_param_mode == 'exponential':
             decay_rate = kwargs.get('parameter_decay', 0.0)
@@ -875,13 +875,13 @@ def main():
 """
 def main():
     import matplotlib.pyplot as plt
-    env_name = "Pendulum-v1"
-    env_param_mode = "second_order_3"
+    env_name = "Humanoid-v4"
+    env_param_mode = "exponential"
     
     # Increase episodes to see the full decay curve
-    num_episodes = 100
+    num_episodes = 4_000_000
     # Use a range of alphas to see how fast the car gets "weaker"
-    alphas = [0.0] 
+    alphas = [0.0, 0.000005, 0.000001, 0.0000005]
 
     plt.figure(figsize=(10, 6))
 
@@ -892,9 +892,9 @@ def main():
             parameter_decay=alpha
         )
 
-        episodes = range(num_episodes)
+        episodes = range(0, num_episodes, 1000)
         # Change "torques" to "powers" and access the correct dictionary key
-        powers = [scheduler_fn(ep)["max_torque"] if env_name=='Pendulum-v1' else scheduler_fn(ep)["gear_scale"] for ep in episodes]
+        powers = [scheduler_fn(ep)["gear_scale"] for ep in episodes]
         
         # Plotting against episode index
         plt.plot(episodes, powers, label=f'α = {alpha}')

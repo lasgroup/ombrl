@@ -15,7 +15,7 @@ from ombrl.agents import MaxInfoOmbrlLearner, ContinualMaxInfoLearner
 from jaxrl.datasets import ReplayBuffer
 from ombrl.utils.datasets import ResetReplayBuffer
 from maxinforl_jax.datasets import NstepReplayBuffer
-from ombrl.envs.wrappers import InitWrapper, EpisodicParamWrapper, EvalEnvFactory
+from ombrl.envs.wrappers import InitWrapper, EpisodicParamWrapper, StepParamWrapper, EvalEnvFactory
 from jaxrl.evaluation import evaluate
 from jaxrl.utils import make_env
 from ombrl.envs.build_utils import make_hopper_env, make_nonterminating_env
@@ -101,6 +101,39 @@ def train(
         init_state=init_state,
     )
         
+    elif env_name == 'Humanoid-v4':
+        env = make_env(env_name=env_name, seed=seed,
+                       save_folder=video_train_folder,
+                       recording_image_size=recording_image_size,
+                       **env_kwargs)
+        
+        if init_state is not None:
+            env = InitWrapper(env, init_state=init_state)
+
+        if episodic_param_scheduler is not None:
+            assert episodic_param_apply_fn is not None
+            env = StepParamWrapper(
+                env,
+                scheduler_fn=episodic_param_scheduler,
+                apply_fn=episodic_param_apply_fn,
+                apply_before_reset=True,
+            )
+        else:
+            env.step_idx = -1  # for logging purposes
+        
+        eval_env_factory = EvalEnvFactory(
+            make_env_fn=lambda folder_name: make_env(
+            env_name=env_name,
+            seed=seed + 42,
+            save_folder=folder_name,
+            episode_trigger=eval_episode_trigger,
+            recording_image_size=recording_image_size,
+            **env_kwargs,
+        ),
+        apply_fn=episodic_param_apply_fn,
+        init_state=init_state,
+    )
+
     elif env_name == 'Hopper-v4':
         env = make_hopper_env(env_name=env_name, seed=seed,
                        save_folder=video_train_folder,
