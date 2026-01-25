@@ -2,7 +2,7 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs.additional import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Jan_24_23_30_Gym_humanoid_Test_4'
+PROJECT_NAME = 'MT_Jan_25_23_30_Gym_humanoid_Test_5'
 WANDB_OFFLINE = True
 LONG_EXPERIMENT = False
 
@@ -16,7 +16,7 @@ _applicable_configs = {
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'parameter_decay':  [0.0, 0.000005, 0.000001, 0.0000005],
+    'parameter_decay':  [0.0, 0.00001, 0.000003, 0.000001],
     # 'fixed_parameter':  [2_000_000],
     'reset_models': [1],
     'save_video': [0],

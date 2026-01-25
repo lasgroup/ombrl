@@ -810,7 +810,7 @@ def get_scheduler_apply_fn(env_name: str = None, env_param_mode: str = None, **k
         env_logs = {}
         max_scale = 1.0
         min_scale = 0.3
-        transition_begin = 2_000_000
+        transition_begin = 1_000_000
 
         if env_param_mode == 'exponential':
             decay_rate = kwargs.get('parameter_decay', 0.0)
@@ -879,9 +879,9 @@ def main():
     env_param_mode = "exponential"
     
     # Increase episodes to see the full decay curve
-    num_episodes = 4_000_000
+    num_episodes = 2_000_000
     # Use a range of alphas to see how fast the car gets "weaker"
-    alphas = [0.0, 0.000005, 0.000001, 0.0000005]
+    alphas = [0.0, 0.00001, 0.000003, 0.000001]
 
     plt.figure(figsize=(10, 6))
 
