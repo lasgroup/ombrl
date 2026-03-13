@@ -2,9 +2,9 @@ from experiments.utils import generate_run_commands, generate_base_command, dict
 from experiments.mt.changing_envs.additional import experiment as exp
 import argparse
 
-PROJECT_NAME = 'MT_Jan_21_15_45_Gym_invertedDoublePendulum_all_1'
+PROJECT_NAME = 'MT_Mar_13_16_15_Gym_invertedDoublePendulum_repeat_1'
 
-WANDB_OFFLINE = True
+WANDB_OFFLINE = False
 LONG_EXPERIMENT = True
 
 entity = 'kiten'
@@ -17,7 +17,7 @@ _applicable_configs = {
     'use_tqdm': [0],
     'pseudo_ct': [0],
     'predict_diff': [1],
-    'parameter_decay': [0.0, 0.002, 0.005, 0.007],
+    'parameter_decay': [0.02],
     'reset_models': [1],
     'save_video': [0],
     'eval_episodes': [5],
