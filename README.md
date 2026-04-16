@@ -1,5 +1,9 @@
 # OMBRL: Optimistic Exploration in Model-based RL
-This is an open-source implementation of algorithms for optimistic exploration in model-based RL settings, based on the [MaxInfoRL](https://github.com/sukhijab/maxinforl) repository, which in turn is based on [jaxrl](https://github.com/ikostrikov/jaxrl). Among others, you will find an implementation of the COMBRL algorithm from our paper [Sample-efficient and Scalable Exploration in Continuous-Time RL](https://arxiv.org/abs/2510.24482v1) and the SoftAE algorithm from our paper [Learning Soft Robotic Dynamics with Active Exploration](https://arxiv.org/abs/2510.27428). This repository is currently under construction, so be sure to check back soon - more info to come!
+This is an open-source implementation of algorithms for optimistic exploration in model-based RL settings, based on the [MaxInfoRL](https://github.com/sukhijab/maxinforl) repository, which in turn is based on [jaxrl](https://github.com/ikostrikov/jaxrl). Among others, you will find an implementation of the following algorithms:
+- [SOMBRL: Scalable and Optimistic Model-Based RL](https://arxiv.org/abs/2511.20066) (Sukhija et.al., NeurIPS 2025)
+- COMBRL from our paper [Sample-efficient and Scalable Exploration in Continuous-Time RL](https://arxiv.org/abs/2510.24482) (Iten et.al., ICLR 2026)
+- the SoftAE algorithm from our paper [Learning Soft Robotic Dynamics with Active Exploration](https://arxiv.org/abs/2510.27428) (Zheng et.al., preprint 2025)
+- R-OMBRL and SW-OMBRL from our preprint [Model-Based Reinforcement Learning for Control under Time-Varying Dynamics](https://arxiv.org/abs/2604.02260) (Iten et.al., preprint 2026)
 
 ## Getting started
 
