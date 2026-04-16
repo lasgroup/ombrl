@@ -1,9 +1,40 @@
 # OMBRL: Optimistic Exploration in Model-based RL
-This is an open-source implementation of algorithms for optimistic exploration in model-based RL settings, based on the [MaxInfoRL](https://github.com/sukhijab/maxinforl) repository, which in turn is based on [jaxrl](https://github.com/ikostrikov/jaxrl). Among others, you will find an implementation of the following algorithms:
-- [SOMBRL: Scalable and Optimistic Model-Based RL](https://arxiv.org/abs/2511.20066) (Sukhija et.al., NeurIPS 2025)
-- COMBRL from our paper [Sample-efficient and Scalable Exploration in Continuous-Time RL](https://arxiv.org/abs/2510.24482) (Iten et.al., ICLR 2026)
-- the SoftAE algorithm from our paper [Learning Soft Robotic Dynamics with Active Exploration](https://arxiv.org/abs/2510.27428) (Zheng et.al., preprint 2025)
-- R-OMBRL and SW-OMBRL from our preprint [Model-Based Reinforcement Learning for Control under Time-Varying Dynamics](https://arxiv.org/abs/2604.02260) (Iten et.al., preprint 2026)
+This repository provides an open-source implementation of algorithms for optimistic exploration in model-based reinforcement learning. It is based on the [MaxInfoRL](https://github.com/sukhijab/maxinforl) repository, which itself builds on [jaxrl](https://github.com/ikostrikov/jaxrl).
+
+Among others, the repository includes implementations of the following algorithms:
+
+- [SOMBRL: Scalable and Optimistic Model-Based RL](https://arxiv.org/abs/2511.20066) (Sukhija et al., NeurIPS 2025)
+- COMBRL from our paper [Sample-efficient and Scalable Exploration in Continuous-Time RL](https://arxiv.org/abs/2510.24482) (Iten et al., ICLR 2026)
+- SoftAE from our paper [Learning Soft Robotic Dynamics with Active Exploration](https://arxiv.org/abs/2510.27428) (Zheng et al., preprint 2025)
+- R-OMBRL and SW-OMBRL from our preprint [Model-Based Reinforcement Learning for Control under Time-Varying Dynamics](https://arxiv.org/abs/2604.02260) (Iten et al., preprint 2026)
+
+## Did this help you?
+
+If you have any questions, feel free to reach out to us at `kiten[at]ethz[dot]ch`.
+
+If you found this repository useful in your work, we would appreciate a citation:
+
+```bibtex
+@misc{sukhija2025sombrl,
+  title         = {SOMBRL: Scalable and Optimistic Model-Based RL},
+  author        = {Bhavya Sukhija and Lenart Treven and Carmelo Sferrazza and Florian Dörfler and Pieter Abbeel and Andreas Krause},
+  year          = {2025},
+  eprint        = {2511.20066},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url           = {https://arxiv.org/abs/2511.20066},
+}
+
+@misc{iten2026sampleefficient,
+  title         = {Sample-efficient and Scalable Exploration in Continuous-Time RL},
+  author        = {Klemens Iten and Lenart Treven and Bhavya Sukhija and Florian Dörfler and Andreas Krause},
+  year          = {2026},
+  eprint        = {2510.24482},
+  archivePrefix = {arXiv},
+  primaryClass  = {cs.LG},
+  url           = {https://arxiv.org/abs/2510.24482},
+}
+```
 
 ## Getting started
 
@@ -31,7 +62,7 @@ This is an open-source implementation of algorithms for optimistic exploration i
 
 4. set up [wandb](https://docs.wandb.ai/quickstart)
 
-5. add ombrl to your python path: ```PYTHONPATH=$PYTHONPATH:/path/to/ombrl```. You can also add this to your .bashrc.
+5. add ombrl to your python path: ```PYTHONPATH=$PYTHONPATH:/path/to/ombrl```.
 
 6. Launch experiments with the launcher: 
     ```
@@ -39,9 +70,9 @@ This is an open-source implementation of algorithms for optimistic exploration i
     ```
 
 
-### Remote Deployment on [euler.ethz.ch](https://scicomp.ethz.ch/wiki/Main_Page)
+### Remote Deployment on [euler.ethz.ch]([https://scicomp.ethz.ch/wiki/Main_Page](https://docs.hpc.ethz.ch/))
 
-1. Set up remote development from your computer to Euler in either [PyCharm](https://www.jetbrains.com/help/pycharm/creating-a-remote-server-configuration.html#mapping) ~~or [VSCode](https://code.visualstudio.com/docs/remote/ssh-tutorial)~~.
+1. Set up remote development from your computer to Euler in either [PyCharm](https://www.jetbrains.com/help/pycharm/creating-a-remote-server-configuration.html#mapping) or [VSCode](https://code.visualstudio.com/docs/remote/ssh-tutorial).
 
 5. Set up git protocols on Euler: [Connecting to GitHub with SSH](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
 
@@ -81,7 +112,7 @@ This is an open-source implementation of algorithms for optimistic exploration i
 
 5. set up [wandb](https://docs.wandb.ai/quickstart) on Euler
 
-5. add ombrl to your python path: ```PYTHONPATH=$PYTHONPATH:/path/on/euler/to/ombrl```. You can also add this to your .bashrc or .mbrl_setup file.
+5. add ombrl to your python path: ```PYTHONPATH=$PYTHONPATH:/path/on/euler/to/ombrl```. You can also add this to your ```.ombrl_setup``` file.
 
 6. Launch experiments with the launcher: 
     ```
