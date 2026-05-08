@@ -10,7 +10,7 @@ Among others, the repository includes implementations of the following algorithm
 
 ## Did this help you?
 
-If you have any questions, feel free to reach out to us at `kiten[at]ethz[dot]ch`.
+This repo is very much still a work in progress. If you have any questions, feel free to reach out to us at `kiten[at]ethz[dot]ch`.
 
 If you found this repository useful in your work, we would appreciate a citation:
 
